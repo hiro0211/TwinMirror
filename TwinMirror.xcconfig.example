@@ -1,0 +1,8 @@
+// Copy this file to TwinMirror.xcconfig and fill in your keys.
+// TwinMirror.xcconfig is gitignored — never commit real keys.
+//
+// Get your Gemini API key from: https://aistudio.google.com/apikey
+// Get your OpenAI API key from: https://platform.openai.com/api-keys (optional fallback)
+
+GEMINI_API_KEY = REPLACE_WITH_YOUR_GEMINI_KEY
+OPENAI_API_KEY = REPLACE_WITH_YOUR_OPENAI_KEY_OR_EMPTY

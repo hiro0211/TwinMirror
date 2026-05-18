@@ -1,0 +1,31 @@
+# API keys — never commit
+TwinMirror.xcconfig
+
+# Xcode
+*.xcodeproj/
+xcuserdata/
+*.xcuserstate
+DerivedData/
+build/
+
+# macOS
+.DS_Store
+
+# Swift Package Manager
+.swiftpm/
+.build/
+Package.resolved
+
+# CocoaPods (unused, just in case)
+Pods/
+
+# fastlane
+fastlane/report.xml
+fastlane/Preview.html
+
+# Bundler
+.bundle/
+vendor/
+
+.env
+.env.local

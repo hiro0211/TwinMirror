@@ -1,0 +1,39 @@
+TASK: Generate a photorealistic portrait of a newborn human baby
+(0 to 3 months old) who plausibly appears to be the biological child
+of the two adults in the reference images. This is a fictional, illustrative
+output for entertainment purposes.
+
+ROLE OF EACH REFERENCE IMAGE:
+- Image A = facial reference of the FATHER (adult, 18+).
+- Image B = facial reference of the MOTHER (adult, 18+).
+
+FEATURE INHERITANCE (blend, do not copy):
+- Eye shape and eye color: a natural blend of A and B.
+- Nose shape: dominant features from one parent, subtle from the other.
+- Mouth and lips: blended.
+- Skin tone: a midpoint between A and B (slightly lighter, soft).
+- Hair (if visible): sparse newborn hair, color blended from A and B.
+- Overall face shape: harmonious blend.
+
+BABY GENDER: {{GENDER}}
+
+COMPOSITION:
+- Single subject, baby only, centered, head-and-shoulders portrait.
+- Soft natural daylight from front-left, no harsh shadows.
+- Neutral cream or pale-pink background, slightly blurred.
+- Eyes open, gentle natural expression (slight smile or neutral, NOT crying).
+- Realistic newborn proportions (large head, small chin, chubby cheeks).
+- Photorealistic skin texture appropriate for a newborn (soft, slightly translucent).
+
+NEGATIVE INSTRUCTIONS (do not include):
+- No text, no watermark, no logos, no captions.
+- No adult facial features placed on the baby (no morphing the parents'
+  faces onto the baby).
+- No multiple babies, no extra limbs, no distorted anatomy.
+- No props, no toys, no jewelry, no hats unless implied by reference.
+- Do not depict the adults; only the baby.
+
+SAFETY:
+- Both reference images depict consenting adults (18+).
+- This is a fictional, illustrative output for entertainment.
+- If either reference image appears to depict a minor, refuse generation.

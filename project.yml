@@ -1,0 +1,82 @@
+name: TwinMirror
+options:
+  bundleIdPrefix: app.twinmirror
+  deploymentTarget:
+    iOS: "26.0"
+  developmentLanguage: ja
+  xcodeVersion: "26.3"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    IPHONEOS_DEPLOYMENT_TARGET: "26.0"
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    SWIFT_STRICT_CONCURRENCY: complete
+configs:
+  Debug: debug
+  Release: release
+configFiles:
+  Debug: TwinMirror.xcconfig
+  Release: TwinMirror.xcconfig
+targets:
+  TwinMirror:
+    type: application
+    platform: iOS
+    sources:
+      - path: TwinMirror
+    resources:
+      - path: TwinMirror/Resources
+    info:
+      path: TwinMirror/Info.plist
+      properties:
+        CFBundleDisplayName: ツインミラー
+        CFBundleShortVersionString: "0.1.0"
+        CFBundleVersion: "1"
+        LSRequiresIPhoneOS: true
+        UILaunchScreen:
+          UIColorName: ""
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        UIRequiredDeviceCapabilities:
+          - arm64
+        NSPhotoLibraryUsageDescription: 2人の写真を選んで赤ちゃん画像を生成するために、写真ライブラリへのアクセスを使用します。
+        NSPhotoLibraryAddUsageDescription: 生成された赤ちゃん画像を写真ライブラリに保存するために使用します。
+        ITSAppUsesNonExemptEncryption: false
+        GEMINI_API_KEY: $(GEMINI_API_KEY)
+        OPENAI_API_KEY: $(OPENAI_API_KEY)
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.twinmirror.ios
+        TARGETED_DEVICE_FAMILY: "1"
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+  TwinMirrorTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: TwinMirrorTests
+    dependencies:
+      - target: TwinMirror
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.twinmirror.ios.tests
+        IPHONEOS_DEPLOYMENT_TARGET: "26.0"
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  TwinMirror:
+    build:
+      targets:
+        TwinMirror: all
+        TwinMirrorTests: [test]
+    test:
+      targets:
+        - TwinMirrorTests
+      gatherCoverageData: true
+      coverageTargets:
+        - TwinMirror
+    run:
+      config: Debug
+    archive:
+      config: Release
