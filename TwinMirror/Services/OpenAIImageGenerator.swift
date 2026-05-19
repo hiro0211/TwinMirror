@@ -15,7 +15,7 @@ struct OpenAIImageGenerator: ImageGenerator {
             throw ImageGenerationError.missingAPIKey
         }
         // OpenAI gpt-image-2 (April 2026) supports multi-image reference via the
-        // /v1/images/edits multipart endpoint with multiple image[] fields.
+        // /v1/images/edits multipart endpoint with the `image` field repeated.
         // For MVP we send a single request asking for `count` images.
         let url = URL(string: "https://api.openai.com/v1/images/edits")!
         let boundary = "----TwinMirror-\(UUID().uuidString)"
@@ -23,7 +23,10 @@ struct OpenAIImageGenerator: ImageGenerator {
         urlRequest.httpMethod = "POST"
         urlRequest.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         urlRequest.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-        urlRequest.timeoutInterval = 90
+        // gpt-image-2 は quality=high × n=3 × 参照画像2枚で 60〜180秒かかることが多い。
+        // 90秒だと URLSession 側がタイムアウトしてユーザーには「生成できませんでした」と
+        // 表示されるだけになるため、サーバの実処理時間に合わせて余裕を持って 240 秒に設定。
+        urlRequest.timeoutInterval = 240
         urlRequest.httpBody = Self.multipartBody(
             boundary: boundary,
             prompt: prompt,
@@ -62,6 +65,13 @@ struct OpenAIImageGenerator: ImageGenerator {
         append("Content-Disposition: form-data; name=\"size\"\r\n\r\n")
         append("1024x1024\r\n")
 
+        // gpt-image-2: quality ∈ {low, medium, high, auto}. high for photorealism.
+        append("--\(boundary)\r\n")
+        append("Content-Disposition: form-data; name=\"quality\"\r\n\r\n")
+        append("high\r\n")
+
+        // OpenAI /v1/images/edits は同一フィールドの重複(400)を拒否する。
+        // 複数枚を渡す時は `image[]` 配列記法でフィールドを並べる必要がある。
         for (i, imageData) in images.enumerated() {
             append("--\(boundary)\r\n")
             append("Content-Disposition: form-data; name=\"image[]\"; filename=\"ref_\(i).jpg\"\r\n")

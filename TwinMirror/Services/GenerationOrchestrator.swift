@@ -1,37 +1,78 @@
 import Foundation
 import UIKit
 
-/// Orchestrates the fallback chain:
-/// 1. Gemini 3.1 (Nano Banana 2) + photorealistic
-/// 2. Gemini 3.1 + illustration
-/// 3. Gemini 2.5 + illustration
-/// 4. OpenAI gpt-image-2 + illustration
+/// 画像生成のオーケストレータ。
+///
+/// ユーザーが選んだ `GenerationQuality` で実行プロバイダが分岐する:
+/// - `.fast`     : Gemini 3.1 Nano Banana 2 のみ（高速・無料枠で十分）。OpenAIキーがあっても無視。
+/// - `.premium`  : OpenAI gpt-image-2 のみ。Geminiへの暗黙フォールバックなし。
+///                 ただしOpenAIキーが未設定 / プレースホルダーの時は安全のためGeminiチェーンで代用。
+///
+/// `.fast` / OpenAI未設定時のGeminiチェーン:
+///   1. Gemini 3.1 (Nano Banana 2) photorealistic
+///   2. Gemini 2.5 photorealistic
+///   3. Gemini 3.1 illustration (最後の砦)
 struct GenerationOrchestrator {
-    let geminiKey: String
-    let openAIKey: String
+    struct Attempt {
+        let generator: any ImageGenerator
+        let style: GenerationStyle
+    }
+
+    let attempts: [Attempt]
     let promptBuilder: PromptBuilder
 
-    init(geminiKey: String, openAIKey: String, promptBuilder: PromptBuilder = PromptBuilder()) {
-        self.geminiKey = geminiKey
-        self.openAIKey = openAIKey
+    /// Test seam: inject attempt list directly.
+    init(attempts: [Attempt], promptBuilder: PromptBuilder = PromptBuilder()) {
+        self.attempts = attempts
         self.promptBuilder = promptBuilder
     }
 
-    func generate(request: GenerationRequest, candidateCount: Int = 3) async throws -> GenerationResult {
-        struct Attempt {
-            let generator: any ImageGenerator
-            let style: GenerationStyle
-        }
+    /// Production convenience: build default chain from API keys + quality.
+    init(
+        geminiKey: String,
+        openAIKey: String,
+        quality: GenerationQuality,
+        promptBuilder: PromptBuilder = PromptBuilder()
+    ) {
+        self.init(
+            attempts: Self.defaultAttempts(geminiKey: geminiKey, openAIKey: openAIKey, quality: quality),
+            promptBuilder: promptBuilder
+        )
+    }
 
-        var attempts: [Attempt] = [
+    static func defaultAttempts(
+        geminiKey: String,
+        openAIKey: String,
+        quality: GenerationQuality
+    ) -> [Attempt] {
+        switch quality {
+        case .fast:
+            // 高速モード: Geminiチェーンのみ（OpenAIキーがあっても使わない）
+            return geminiChain(geminiKey: geminiKey)
+
+        case .premium:
+            // プレミアムモード: OpenAI単独。キーが無効ならGeminiチェーンに代替。
+            if !openAIKey.isEmpty && openAIKey != "REPLACE_WITH_YOUR_OPENAI_KEY_OR_EMPTY" {
+                return [
+                    Attempt(
+                        generator: OpenAIImageGenerator(apiKey: openAIKey),
+                        style: .photorealistic
+                    )
+                ]
+            }
+            return geminiChain(geminiKey: geminiKey)
+        }
+    }
+
+    private static func geminiChain(geminiKey: String) -> [Attempt] {
+        [
             Attempt(generator: GeminiImageGenerator(apiKey: geminiKey, model: .nanoBanana2), style: .photorealistic),
+            Attempt(generator: GeminiImageGenerator(apiKey: geminiKey, model: .stable25),    style: .photorealistic),
             Attempt(generator: GeminiImageGenerator(apiKey: geminiKey, model: .nanoBanana2), style: .illustration),
-            Attempt(generator: GeminiImageGenerator(apiKey: geminiKey, model: .stable25),    style: .illustration)
         ]
-        if !openAIKey.isEmpty && openAIKey != "REPLACE_WITH_YOUR_OPENAI_KEY_OR_EMPTY" {
-            attempts.append(Attempt(generator: OpenAIImageGenerator(apiKey: openAIKey), style: .illustration))
-        }
+    }
 
+    func generate(request: GenerationRequest, candidateCount: Int = 3) async throws -> GenerationResult {
         var lastError: Error?
         for attempt in attempts {
             do {
@@ -44,11 +85,10 @@ struct GenerationOrchestrator {
                 return GenerationResult(images: images, bestIndex: bestIndex, usedStyle: attempt.style)
             } catch {
                 lastError = error
-                // Only fall through to next attempt on safety/transient errors.
+                // Only fall through to next attempt on safety/transient errors,
+                // or when the current generator is unusable (missing key).
                 if let genErr = error as? ImageGenerationError, !genErr.isSafetyOrTransient {
                     if case .missingAPIKey = genErr {
-                        // Hard stop — no point trying other generators that use the same missing key
-                        // unless next generator is a different vendor.
                         continue
                     }
                     throw error

@@ -92,3 +92,86 @@ xcodebuild build -scheme TwinMirror -destination 'id=C7BB8D3B-A9A9-4CB8-8EAA-1A3
 xcodebuild test -scheme TwinMirror -destination 'id=C7BB8D3B-A9A9-4CB8-8EAA-1A350FD6B584'
 xcrun simctl launch C7BB8D3B-A9A9-4CB8-8EAA-1A350FD6B584 app.twinmirror.ios
 ```
+
+## 2026-05-18
+
+### 作業内容
+- `GenerationOrchestrator.defaultAttempts` を OpenAI 排他化（Gemini 暗黙フォールバック撤廃）
+  - OpenAIキー有効時: OpenAI 単独 attempt のみ返す
+  - OpenAIキー未設定 / プレースホルダー時のみ既存 Gemini 3.1/2.5/illustration チェーンを返す（後方互換）
+- 関連テストを新仕様に追従:
+  - `test_defaultAttempts_openaiFirstWhenKeyPresent` → `test_defaultAttempts_onlyOpenAIWhenKeyPresent`（count == 1 / Gemini 含まないことを明示検証）
+  - `test_defaultAttempts_endsWithIllustrationFallback` → `..._whenOpenAIAbsent`（openAIKey="" の時のみ illustration が末尾）
+
+### 変更ファイル
+- `TwinMirror/Services/GenerationOrchestrator.swift`
+- `TwinMirrorTests/GenerationOrchestratorTests.swift`
+
+### 検証結果
+- `xcodebuild test`: ALL 37 tests passed (0 failures)
+- 計画ファイル: `/Users/arimurahiroaki/.claude/plans/users-arimurahiroaki-downloads-img-4843-enumerated-hanrahan.md`
+
+### 背景
+ユーザーが GPT API に切り替えたつもりだったが、`generate()` ループの transient-error
+フォールバック（429/400/5xx）により OpenAI 失敗 → Gemini 呼び出し → Gemini 側のクレジット
+枯渇エラー（"Your prepayment credits are depleted. AI Studio..."）がユーザーに表示されていた。
+OpenAI のエラーがそのまま伝播するよう、OpenAI キー有効時はチェーン長を 1 にした。
+
+### 次回確認したいこと
+- シミュレータ実機で `api.openai.com` のみにリクエストが飛ぶことを Proxyman 等で再確認
+- OpenAI 側のクレジット残高 / `gpt-image-2` モデル名（2026-04 リリース、今も実在するか公式 doc で確認）
+- 必要なら post-MVP として OpenAI 安全ブロック時の illustration スタイル attempt を検討
+
+### 追加修正 (同日)
+- OpenAI 400エラー "Duplicate parameter: 'image'" を解消
+  - `OpenAIImageGenerator.multipartBody` のフィールド名を `image` → `image[]` に変更
+  - OpenAI `/v1/images/edits` は同名フィールド重複を 400 で拒否する。複数画像は配列記法 `image[]` で渡す必要がある
+  - テスト `test_multipartBody_imageFieldRepeatedNotBracketed` → `test_multipartBody_imageFieldUsesArrayBracketsForMultiple` に書き換え、`image[]` が画像数ぶん出ること & bracket無しの `image` が出ないことを検証
+- `xcodebuild test`: 全 37 tests pass
+
+### さらなる追加機能 (同日・生成モード選択)
+- ユーザーが生成前に「高速モード」「プレミアムモード」を選択できるよう実装
+  - **高速モード** (`.fast`): Gemini 3.1 Nano Banana 2 中心。Geminiチェーンを使用。サブテキスト「約10秒でサクッと生成」
+  - **プレミアムモード** (`.premium`): OpenAI gpt-image-2 単独。キーが無効ならGeminiにフォールバック。サブテキスト「1〜2分かけて高画質に仕上げる」
+- 追加・変更内容:
+  - `Models/GenerationRequest.swift`: `GenerationQuality` enum (displayName / subtitle / systemImage) と `GenerationRequest.quality` フィールド (default `.fast`)
+  - `Services/GenerationOrchestrator.swift`: `defaultAttempts` & `init` に `quality` 引数を追加し switch でルーティング。`geminiChain` private helper を抽出
+  - `Features/Compose/ComposeViewModel.swift`: `quality: GenerationQuality = .fast` を追加、`buildGenerationRequest()` に流し込み
+  - `Features/Result/ResultViewModel.swift`: `init` で `quality: initialRequest.quality` を Orchestrator に渡す、`regenerate` でも quality を保持
+  - `Features/Compose/ComposeView.swift`: 性別セクションの直下に `qualitySection` を追加。Liquid Glass ベースの `QualityModeCard` (private struct) を inline 実装。アイコン (`bolt.fill` / `sparkles`) + 日本語タイトル + サブテキスト + チェックマーク。fast は accent (青)、premium は primaryDeep (濃いピンク) のティント
+  - `TwinMirrorTests/GenerationOrchestratorTests.swift`: quality ベースの新テスト 6 件で旧テスト 4 件を置き換え
+
+### 検証結果
+- `xcodebuild build`: BUILD SUCCEEDED
+- `xcodebuild test`: ALL 39 tests passed (新規 quality ルーティングテストを含む)
+- 自然な日本語化リサーチ: Google Gemini モバイル app の「高速モード / 思考モード」UIを参考にした（ラベル＋サブテキストの2行構成）
+
+### さらなる追加修正 (同日・タイムアウト対策)
+- `OpenAIImageGenerator.swift` の `urlRequest.timeoutInterval` を `90` → `240` 秒に延長
+- 理由: `gpt-image-2` は `quality=high` × `n=3` × 参照画像2枚で 60〜180 秒かかることが多く、
+  90秒では URLSession 側がタイムアウトして「生成できませんでした」と表示されてしまっていた。
+  OpenAI ダッシュボードでは Credit balance $4.56 / 直近 24h で 2 requests 成功と確認済み（クレジット切れではない）。
+- `xcodebuild test`: 全 37 tests pass（変更は定数のみ、ロジック非影響）
+
+## 2026-05-18
+
+### 作業内容
+- Compose 画面（写真選択画面）の「使い方 / ご利用について」カードが、淡パステル背景の上で暗く濁って読めなかった問題を修正
+- プラン: `/Users/arimurahiroaki/.claude/plans/users-arimurahiroaki-downloads-img-4842-dazzling-kettle.md`（案A採用）
+- `TwinMirror/Features/Compose/ComposeView.swift` のみ変更：
+  - L120 使い方カード：`.glassEffect(.regular.tint(.white.opacity(0.3)))` → `.tint(.white.opacity(0.7))`
+  - L132 ご利用についてカード：`.tint(.orange.opacity(0.2))` → `.tint(Theme.Colors.cream.opacity(0.85))`（オレンジティントの茶色濁りを回避、アイコンの `.orange` は残して注意喚起ニュアンスを担保）
+  - L223 `BulletText` 本文：`Theme.Colors.textSecondary` → `Theme.Colors.textPrimary`（行頭「•」は textSecondary 維持で階層感確保）
+- Theme.swift / Assets.xcassets は変更なし、既存トークン (`cream`, `textPrimary`) を再利用
+
+### 次回やるべきこと
+- 実機 (iOS 26 / iPhone 16 Pro) で 2 カードの可読性を目視確認
+- Dynamic Type xLarge 以上での折り返し挙動確認
+- `xcodebuild test -scheme TwinMirror` で 37 テストが引き続き通ることを確認（UI 変更のみなのでロジック影響なし想定）
+
+### 発見した問題点・注意事項
+- **iOS 26 Liquid Glass `.regular` マテリアル**は背景の輝度を強く引き下げるため、パステル背景に重ねる場合は `.tint(...)` の opacity を 0.6〜0.85 程度まで上げないとマッディな見た目になる。色付きティント（特にオレンジ・ブラウン系）は濁りやすいので、警告系はアイコン色だけで表現し背景はクリーム/白寄りにするのが安全
+- 編集後に SourceKit が `Cannot find 'Theme' in scope` 等を出したが、これは indexer が他ファイルを解決できていない既存症状で、今回の差分（値の置換のみ）とは無関係
+
+### 変更したファイル
+- `TwinMirror/Features/Compose/ComposeView.swift`

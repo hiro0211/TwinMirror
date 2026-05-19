@@ -17,6 +17,7 @@ struct ComposeView: View {
                     titleSection
                     photoCardsSection
                     genderSection
+                    qualitySection
                     instructionsSection
                     disclaimerSection
                     generateButton
@@ -107,6 +108,23 @@ struct ComposeView: View {
         }
     }
 
+    private var qualitySection: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.s) {
+            Text("生成モード")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(Theme.Colors.textPrimary)
+            HStack(spacing: Theme.Spacing.s) {
+                ForEach(GenerationQuality.allCases, id: \.self) { mode in
+                    QualityModeCard(
+                        quality: mode,
+                        isSelected: viewModel.quality == mode,
+                        action: { viewModel.quality = mode }
+                    )
+                }
+            }
+        }
+    }
+
     private var instructionsSection: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
             Label("使い方", systemImage: "book.fill")
@@ -117,7 +135,7 @@ struct ComposeView: View {
             BulletText("正面を向いた顔の写真")
         }
         .padding(Theme.Spacing.m)
-        .glassEffect(.regular.tint(.white.opacity(0.3)), in: .rect(cornerRadius: Theme.Radius.medium))
+        .glassEffect(.regular.tint(.white.opacity(0.7)), in: .rect(cornerRadius: Theme.Radius.medium))
     }
 
     private var disclaimerSection: some View {
@@ -129,7 +147,7 @@ struct ComposeView: View {
             BulletText("生成結果は娯楽目的で、実際の遺伝的予測ではありません")
         }
         .padding(Theme.Spacing.m)
-        .glassEffect(.regular.tint(.orange.opacity(0.2)), in: .rect(cornerRadius: Theme.Radius.medium))
+        .glassEffect(.regular.tint(Theme.Colors.cream.opacity(0.85)), in: .rect(cornerRadius: Theme.Radius.medium))
     }
 
     private var generateButton: some View {
@@ -212,6 +230,67 @@ private struct ParentPhotoCard: View {
     }
 }
 
+private struct QualityModeCard: View {
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    let quality: GenerationQuality
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            action()
+        } label: {
+            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                HStack(spacing: 6) {
+                    Image(systemName: quality.systemImage)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(isSelected ? .white : accentForQuality)
+                    Text(quality.displayName)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(isSelected ? .white : Theme.Colors.textPrimary)
+                    Spacer(minLength: 0)
+                    if isSelected {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 14))
+                            .foregroundStyle(.white)
+                    }
+                }
+                Text(quality.subtitle)
+                    .font(.system(size: 11))
+                    .foregroundStyle(isSelected ? .white.opacity(0.9) : Theme.Colors.textSecondary)
+                    .multilineTextAlignment(.leading)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, Theme.Spacing.m)
+            .padding(.vertical, Theme.Spacing.s + 2)
+            .background {
+                if reduceTransparency {
+                    RoundedRectangle(cornerRadius: Theme.Radius.medium)
+                        .fill(isSelected ? accentForQuality : Color.white.opacity(0.6))
+                }
+            }
+            .glassEffect(
+                isSelected
+                    ? .regular.tint(accentForQuality).interactive()
+                    : .regular.tint(.white.opacity(0.55)).interactive(),
+                in: .rect(cornerRadius: Theme.Radius.medium)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var accentForQuality: Color {
+        switch quality {
+        case .fast: return Theme.Colors.accent
+        case .premium: return Theme.Colors.primaryDeep
+        }
+    }
+}
+
 private struct BulletText: View {
     let text: String
     init(_ text: String) { self.text = text }
@@ -220,7 +299,7 @@ private struct BulletText: View {
             Text("•").foregroundStyle(Theme.Colors.textSecondary)
             Text(text)
                 .font(.system(size: 13))
-                .foregroundStyle(Theme.Colors.textSecondary)
+                .foregroundStyle(Theme.Colors.textPrimary)
         }
     }
 }

@@ -28,7 +28,8 @@ final class ResultViewModel {
         self.motherImage = motherImage
         self.orchestrator = GenerationOrchestrator(
             geminiKey: AppConfig.geminiAPIKey,
-            openAIKey: AppConfig.openAIAPIKey
+            openAIKey: AppConfig.openAIAPIKey,
+            quality: initialRequest.quality
         )
         self.saveService = PhotoSaveService()
     }
@@ -36,7 +37,10 @@ final class ResultViewModel {
     func generate() async {
         phase = .loading
         do {
-            let result = try await orchestrator.generate(request: request)
+            let result = try await orchestrator.generate(
+                request: request,
+                candidateCount: request.quality.candidateCount
+            )
             phase = .done(result)
         } catch {
             phase = .failed(error.localizedDescription)
@@ -48,7 +52,8 @@ final class ResultViewModel {
         request = GenerationRequest(
             fatherImageData: request.fatherImageData,
             motherImageData: request.motherImageData,
-            gender: newGender
+            gender: newGender,
+            quality: request.quality
         )
         await generate()
     }
