@@ -1,22 +1,21 @@
 import Foundation
 import UIKit
 
-/// 画像生成のオーケストレータ。
+/// 画像生成のオーケストレータ。Gemini Nano Banana を1枚生成で叩く。
 ///
-/// ユーザーが選んだ `GenerationQuality` で実行プロバイダが分岐する:
-/// - `.fast`     : Gemini 3.1 Nano Banana 2 のみ（高速・無料枠で十分）。OpenAIキーがあっても無視。
-/// - `.premium`  : OpenAI gpt-image-2 のみ。Geminiへの暗黙フォールバックなし。
-///                 ただしOpenAIキーが未設定 / プレースホルダーの時は安全のためGeminiチェーンで代用。
-///
-/// `.fast` / OpenAI未設定時のGeminiチェーン:
+/// フォールバックチェーン:
 ///   1. Gemini 3.1 (Nano Banana 2) photorealistic
 ///   2. Gemini 2.5 photorealistic
-///   3. Gemini 3.1 illustration (最後の砦)
+///   3. Gemini 3.1 illustration（最後の砦）
 struct GenerationOrchestrator {
     struct Attempt {
         let generator: any ImageGenerator
         let style: GenerationStyle
     }
+
+    /// 1回の生成で要求する候補画像数。
+    /// 本番は **1枚固定**（プレミアム削除 & コスト最適化）。
+    static let candidateCount = 1
 
     let attempts: [Attempt]
     let promptBuilder: PromptBuilder
@@ -27,44 +26,18 @@ struct GenerationOrchestrator {
         self.promptBuilder = promptBuilder
     }
 
-    /// Production convenience: build default chain from API keys + quality.
+    /// Production convenience: build default chain from API keys.
     init(
         geminiKey: String,
-        openAIKey: String,
-        quality: GenerationQuality,
         promptBuilder: PromptBuilder = PromptBuilder()
     ) {
         self.init(
-            attempts: Self.defaultAttempts(geminiKey: geminiKey, openAIKey: openAIKey, quality: quality),
+            attempts: Self.defaultAttempts(geminiKey: geminiKey),
             promptBuilder: promptBuilder
         )
     }
 
-    static func defaultAttempts(
-        geminiKey: String,
-        openAIKey: String,
-        quality: GenerationQuality
-    ) -> [Attempt] {
-        switch quality {
-        case .fast:
-            // 高速モード: Geminiチェーンのみ（OpenAIキーがあっても使わない）
-            return geminiChain(geminiKey: geminiKey)
-
-        case .premium:
-            // プレミアムモード: OpenAI単独。キーが無効ならGeminiチェーンに代替。
-            if !openAIKey.isEmpty && openAIKey != "REPLACE_WITH_YOUR_OPENAI_KEY_OR_EMPTY" {
-                return [
-                    Attempt(
-                        generator: OpenAIImageGenerator(apiKey: openAIKey),
-                        style: .photorealistic
-                    )
-                ]
-            }
-            return geminiChain(geminiKey: geminiKey)
-        }
-    }
-
-    private static func geminiChain(geminiKey: String) -> [Attempt] {
+    static func defaultAttempts(geminiKey: String) -> [Attempt] {
         [
             Attempt(generator: GeminiImageGenerator(apiKey: geminiKey, model: .nanoBanana2), style: .photorealistic),
             Attempt(generator: GeminiImageGenerator(apiKey: geminiKey, model: .stable25),    style: .photorealistic),
@@ -72,7 +45,7 @@ struct GenerationOrchestrator {
         ]
     }
 
-    func generate(request: GenerationRequest, candidateCount: Int = 3) async throws -> GenerationResult {
+    func generate(request: GenerationRequest, candidateCount: Int = GenerationOrchestrator.candidateCount) async throws -> GenerationResult {
         var lastError: Error?
         for attempt in attempts {
             do {
@@ -85,8 +58,6 @@ struct GenerationOrchestrator {
                 return GenerationResult(images: images, bestIndex: bestIndex, usedStyle: attempt.style)
             } catch {
                 lastError = error
-                // Only fall through to next attempt on safety/transient errors,
-                // or when the current generator is unusable (missing key).
                 if let genErr = error as? ImageGenerationError, !genErr.isSafetyOrTransient {
                     if case .missingAPIKey = genErr {
                         continue
@@ -99,8 +70,7 @@ struct GenerationOrchestrator {
         throw lastError ?? ImageGenerationError.allFallbacksExhausted
     }
 
-    /// Pick the image with the largest file size as a rough proxy for detail/quality.
-    /// (TODO post-MVP: also run Vision face detection and prefer images with a single detected face.)
+    /// 1枚運用のため通常は index 0。複数返ってきた場合に備えて jpeg サイズで雑に選ぶ。
     func pickBestIndex(from images: [UIImage]) -> Int {
         var bestIndex = 0
         var bestSize = 0

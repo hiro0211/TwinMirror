@@ -7,6 +7,12 @@ struct ComposeView: View {
     @State private var motherPickerItem: PhotosPickerItem?
     @State private var navigateToResult = false
     @State private var generationRequest: GenerationRequest?
+    @State private var showAIConsentSheet = false
+    @State private var showUsageLimitAlert = false
+
+    @AppStorage("twinmirror.consent.ai") private var hasConsentedToAI = false
+
+    private let usageLimiter = UsageLimiter.shared
 
     var body: some View {
         ZStack {
@@ -18,9 +24,9 @@ struct ComposeView: View {
                     photoCardsSection
                     ageSection
                     genderSection
-                    qualitySection
                     instructionsSection
                     disclaimerSection
+                    usageBadge
                     generateButton
                 }
                 .padding(.horizontal, Theme.Spacing.l)
@@ -42,6 +48,23 @@ struct ComposeView: View {
             Button("OK") { viewModel.errorMessage = nil }
         } message: {
             Text(viewModel.errorMessage ?? "")
+        }
+        .alert("本日の生成上限に達しました", isPresented: $showUsageLimitAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("コスト管理のため、1日あたり \(UsageLimiter.dailyLimit) 回までご利用いただけます。明日また使ってみてください。")
+        }
+        .sheet(isPresented: $showAIConsentSheet) {
+            AIConsentSheet(
+                onAccept: {
+                    hasConsentedToAI = true
+                    showAIConsentSheet = false
+                    proceedToGenerate()
+                },
+                onDecline: {
+                    showAIConsentSheet = false
+                }
+            )
         }
         .onChange(of: fatherPickerItem) { _, newValue in
             Task { await loadImage(from: newValue, slot: .father) }
@@ -119,23 +142,6 @@ struct ComposeView: View {
         }
     }
 
-    private var qualitySection: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.s) {
-            Text("生成モード")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(Theme.Colors.textPrimary)
-            HStack(spacing: Theme.Spacing.s) {
-                ForEach(GenerationQuality.allCases, id: \.self) { mode in
-                    QualityModeCard(
-                        quality: mode,
-                        isSelected: viewModel.quality == mode,
-                        action: { viewModel.quality = mode }
-                    )
-                }
-            }
-        }
-    }
-
     private var instructionsSection: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
             Label("使い方", systemImage: "book.fill")
@@ -156,25 +162,57 @@ struct ComposeView: View {
                 .foregroundStyle(.orange)
             BulletText("18歳以上の方の写真のみ使用可")
             BulletText("生成結果は娯楽目的で、実際の遺伝的予測ではありません")
+            BulletText("画像は生成のためにGoogle Geminiに送信されます")
         }
         .padding(Theme.Spacing.m)
         .glassEffect(.regular.tint(Theme.Colors.cream.opacity(0.85)), in: .rect(cornerRadius: Theme.Radius.medium))
+    }
+
+    private var usageBadge: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "gauge.medium")
+                .font(.system(size: 12, weight: .semibold))
+            Text("本日の残り生成回数: \(usageLimiter.remainingToday) / \(UsageLimiter.dailyLimit)")
+                .font(.system(size: 12, weight: .medium))
+        }
+        .foregroundStyle(Theme.Colors.textSecondary)
+        .padding(.horizontal, Theme.Spacing.m)
+        .padding(.vertical, Theme.Spacing.s)
+        .glassEffect(.regular.tint(.white.opacity(0.5)), in: .capsule)
     }
 
     private var generateButton: some View {
         GlassButton(
             isProminent: true,
             isEnabled: viewModel.canGenerate,
-            action: {
-                if let req = viewModel.buildGenerationRequest() {
-                    generationRequest = req
-                    navigateToResult = true
-                }
-            }
+            action: handleGenerateTapped
         ) {
             Text("子どもを生成する")
         }
         .padding(.top, Theme.Spacing.s)
+    }
+
+    private func handleGenerateTapped() {
+        guard usageLimiter.canGenerate else {
+            showUsageLimitAlert = true
+            return
+        }
+        guard hasConsentedToAI else {
+            showAIConsentSheet = true
+            return
+        }
+        proceedToGenerate()
+    }
+
+    private func proceedToGenerate() {
+        guard usageLimiter.tryConsume() else {
+            showUsageLimitAlert = true
+            return
+        }
+        if let req = viewModel.buildGenerationRequest() {
+            generationRequest = req
+            navigateToResult = true
+        }
     }
 
     private func loadImage(from item: PhotosPickerItem?, slot: ComposeViewModel.ParentSlot) async {
@@ -209,14 +247,6 @@ private struct ParentPhotoCard: View {
                         .scaledToFill()
                         .clipShape(Circle())
                         .padding(Theme.Spacing.m)
-                        .overlay(alignment: .topTrailing) {
-                            Button(action: onClear) {
-                                Image(systemName: "xmark.circle.fill")
-                                    .font(.system(size: 22))
-                                    .foregroundStyle(.white, .black.opacity(0.5))
-                            }
-                            .padding(Theme.Spacing.xs)
-                        }
                 } else {
                     Image(systemName: "person.fill")
                         .font(.system(size: 50))
@@ -224,6 +254,19 @@ private struct ParentPhotoCard: View {
                 }
             }
             .glassEffect(.regular.tint(.white.opacity(0.2)), in: .rect(cornerRadius: Theme.Radius.medium))
+            .overlay(alignment: .topTrailing) {
+                if image != nil {
+                    Button(action: onClear) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 22))
+                            .foregroundStyle(.white, .black.opacity(0.6))
+                            .frame(width: 44, height: 44)
+                            .contentShape(Circle())
+                    }
+                    .padding(Theme.Spacing.s)
+                    .accessibilityLabel("写真を削除")
+                }
+            }
 
             Text(label)
                 .font(.system(size: 14, weight: .semibold))
@@ -241,67 +284,6 @@ private struct ParentPhotoCard: View {
     }
 }
 
-private struct QualityModeCard: View {
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-
-    let quality: GenerationQuality
-    let isSelected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button {
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            action()
-        } label: {
-            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                HStack(spacing: 6) {
-                    Image(systemName: quality.systemImage)
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(isSelected ? .white : accentForQuality)
-                    Text(quality.displayName)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(isSelected ? .white : Theme.Colors.textPrimary)
-                    Spacer(minLength: 0)
-                    if isSelected {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 14))
-                            .foregroundStyle(.white)
-                    }
-                }
-                Text(quality.subtitle)
-                    .font(.system(size: 11))
-                    .foregroundStyle(isSelected ? .white.opacity(0.9) : Theme.Colors.textSecondary)
-                    .multilineTextAlignment(.leading)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, Theme.Spacing.m)
-            .padding(.vertical, Theme.Spacing.s + 2)
-            .background {
-                if reduceTransparency {
-                    RoundedRectangle(cornerRadius: Theme.Radius.medium)
-                        .fill(isSelected ? accentForQuality : Color.white.opacity(0.6))
-                }
-            }
-            .glassEffect(
-                isSelected
-                    ? .regular.tint(accentForQuality).interactive()
-                    : .regular.tint(.white.opacity(0.55)).interactive(),
-                in: .rect(cornerRadius: Theme.Radius.medium)
-            )
-        }
-        .buttonStyle(.plain)
-    }
-
-    private var accentForQuality: Color {
-        switch quality {
-        case .fast: return Theme.Colors.accent
-        case .premium: return Theme.Colors.primaryDeep
-        }
-    }
-}
-
 private struct BulletText: View {
     let text: String
     init(_ text: String) { self.text = text }
@@ -312,6 +294,57 @@ private struct BulletText: View {
                 .font(.system(size: 13))
                 .foregroundStyle(Theme.Colors.textPrimary)
         }
+    }
+}
+
+/// Apple App Review Guideline 5.1.2(i) 準拠の AI 送信同意シート。
+/// 初回生成前に明示的同意を取得する。
+private struct AIConsentSheet: View {
+    let onAccept: () -> Void
+    let onDecline: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.l) {
+            HStack {
+                Image(systemName: "shield.lefthalf.filled")
+                    .font(.system(size: 28))
+                    .foregroundStyle(Theme.Colors.accent)
+                Text("AI処理についてのご確認")
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .foregroundStyle(Theme.Colors.textPrimary)
+            }
+            .padding(.top, Theme.Spacing.l)
+
+            VStack(alignment: .leading, spacing: Theme.Spacing.s) {
+                Text("子ども画像の生成にあたり、選択された2枚の写真は次の処理を行います。")
+                    .font(.system(size: 14))
+                    .foregroundStyle(Theme.Colors.textPrimary)
+
+                BulletText("Google LLC の画像生成API（Gemini）に送信されます")
+                BulletText("生成リクエストにのみ使用され、当アプリの開発者サーバーには保存されません")
+                BulletText("18歳未満の方の写真は使用しないでください")
+                BulletText("詳細はプライバシーポリシーをご確認ください")
+            }
+
+            Link("プライバシーポリシーを開く", destination: AppConfig.privacyURL)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Theme.Colors.accent)
+
+            Spacer()
+
+            VStack(spacing: Theme.Spacing.s) {
+                GlassButton(isProminent: true, action: onAccept) {
+                    Text("同意して続ける")
+                }
+                Button("キャンセル", action: onDecline)
+                    .font(.system(size: 14))
+                    .foregroundStyle(Theme.Colors.textSecondary)
+            }
+            .padding(.bottom, Theme.Spacing.l)
+        }
+        .padding(.horizontal, Theme.Spacing.l)
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
     }
 }
 

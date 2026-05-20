@@ -275,3 +275,125 @@ OpenAI のエラーがそのまま伝播するよう、OpenAI キー有効時は
 
 #### 注意点
 - LSP（SourceKit）が UIKit / XCTest を解決できないノイズが出るが、xcodebuild ではビルド・テストとも成功する環境問題。実害なし。
+
+### ParentPhotoCard の X ボタンが見切れ＆タップ不可だったバグ修正
+
+#### 現象
+お母さん（右側）の写真カードの X ボタンが画面右端で見切れて押せない。お父さん側でも厳密には同じ clip が起きていたが視認しにくく目立たなかった。
+
+#### 根本原因
+`ParentPhotoCard` の overlay 構造：
+- X ボタンは `Image.padding(m).overlay(alignment: .topTrailing)` で配置
+- 親 ZStack に `.glassEffect(... in: .rect(cornerRadius: 20))` が掛かっており、cornerRadius=20pt の角丸カーブによって、たった 4pt (xs) のインセットで置かれた X ボタンが視覚的にもタップ判定的にも clip されていた
+
+#### 修正内容（Option A：内側に X を収める）
+`TwinMirror/Features/Compose/ComposeView.swift` の `ParentPhotoCard` のみ修正：
+1. `.overlay(alignment: .topTrailing)` を **ZStack の `.glassEffect` の外側** に移動 → clip 影響を受けない
+2. ボタン padding を `xs (4pt)` → `s (8pt)` に増やし、角丸カーブの内側へ
+3. `.frame(width: 44, height: 44)` + `.contentShape(Circle())` で Apple HIG の最小タップ領域 44×44pt を確保
+4. `.foregroundStyle(.white, .black.opacity(0.6))`（0.5→0.6）で視認性微改善
+5. `.accessibilityLabel("写真を削除")` 追加
+
+#### 検証
+- 全 71 自動テストが緑のまま（ロジック層は無変更）
+- 手動検証：実機シミュレータで写真選択 → 両カードの X が表示・タップで写真クリアできることを確認すること（未実施）
+
+#### 変更ファイル
+- `TwinMirror/Features/Compose/ComposeView.swift`（ParentPhotoCard のみ）
+
+#### 注意点
+SwiftUI で clip された View に overlay を当てる時は、**clip より外側で overlay を当てる**のが定石。`.glassEffect(...in:)` は `.clipShape` 相当の振る舞いをするため、その内側に overlay を置くと両端でカットされる。
+
+## 2026-05-20（午後・TestFlight準備セッション）
+
+### 作業内容（Phase 1 ローカルコード完了・全64テスト緑）
+
+#### コスト保護
+- `UsageLimiter.swift` 新設（UserDefaults で 1日3回制限、TDD で 6 tests）
+  - `@unchecked Sendable` で Swift 6 strict concurrency 対応
+  - `dailyLimit = 3`, `tryConsume() -> Bool`, `remainingToday`, `canGenerate`
+  - Asia/Tokyo タイムゾーン基準で日付ロールオーバー
+- `GenerationOrchestrator.candidateCount = 1` に固定（コスト1/3に削減）
+
+#### プレミアムモード削除
+- `GenerationQuality` enum 完全削除（`GenerationRequest.swift` から fast/premium 分岐撤廃）
+- `OpenAIImageGenerator.swift` + `OpenAIImageGeneratorTests.swift` ファイル削除
+- `OPENAI_API_KEY` を `Info.plist` / `project.yml` / `AppConfig` から削除
+- `ComposeView.qualitySection` / `QualityModeCard` private struct 削除
+- `GenerationOrchestrator.defaultAttempts(geminiKey:)` シングル引数化、Geminiチェーン直返し
+- 関連テストを `GenerationOrchestratorTests` で書き直し（quality系を削除、Gemini-only検証に統一）
+
+#### Apple Guideline 5.1.2(i) AI同意フロー
+- `ComposeView` に `AIConsentSheet` 新設（初回生成前に明示同意取得）
+- `@AppStorage("twinmirror.consent.ai")` で永続化
+- `AIConsentSheet` は medium/large detent、Geminiへの送信を箇条書きで開示
+- `disclaimerSection` に「画像はGoogle Geminiに送信されます」を追加
+- 生成ボタン押下時の制御: 「利用制限チェック → 同意チェック → tryConsume → navigate」
+
+#### UI: 残り回数バッジ
+- `usageBadge` を `disclaimerSection` と `generateButton` の間に追加
+- `gauge.medium` アイコン + 「本日の残り生成回数: X / 3」
+
+#### iOS17+ Privacy Manifest
+- `TwinMirror/Resources/PrivacyInfo.xcprivacy` 新設
+  - `NSPrivacyTracking: false`
+  - 収集データ: PhotosOrVideos（App Functionality 用、Linked/Tracking false）
+  - Required Reason API: `NSPrivacyAccessedAPICategoryUserDefaults` 理由コード `CA92.1`（自アプリ内アクセス）
+
+#### 法務ドキュメント更新
+- `docs/privacy.html`: OpenAI記述削除、Apple Guideline 5.1.2(i) 明記、利用回数制限を新セクションで追加、日付 2026-05-20
+- `docs/terms.html`: 第4条 OpenAI記述削除、第5条「利用回数の制限」新設、日付 2026-05-20
+- `AppConfig.swift`: privacyURL / termsURL を `https://hiro0211.github.io/TwinMirror/<page>.html` に差し替え
+
+### リサーチで判明した重要事項
+- **Apple Review Guideline 5.1.2(i)（2025-11-13 施行）**: 第三者AIへの個人データ送信に明示同意必須。広範な同意フォームは無効、具体的開示が必要
+- **Nano Banana 料金（2026-05時点）**: Gemini 2.5 Flash Image = $0.039/枚、Gemini 3 Pro Image = $0.039 (1K) / $0.134 (2K) / $0.24 (4K)
+- **iOS 日本リワード eCPM**: $15-30（1枚原価$0.039なら 1.3-2.5 view で黒字化可能）
+- **1枚生成化はリワード収益化の前提**: 3枚生成だと 4-8 view 必要で UX崩壊
+
+### 検証結果
+- `xcodegen generate`: 成功
+- `xcodebuild test`: **全64テスト緑**（UsageLimiterTests 6件追加、quality系テスト削除を相殺）
+
+### 残作業（次セッションまたは同セッション継続）
+- **ユーザー作業**:
+  - GitHub Pages 有効化（`Settings → Pages → Source: main / docs`）
+  - 変更を `git commit && git push` してGitHub Pagesへ反映
+  - https://hiro0211.github.io/TwinMirror/privacy.html がアクセス可能になることを確認
+  - Apple Developer Program ($99/年) 加入確認 → developer.apple.com にログイン
+  - App Store Connect にログイン
+- **Claude in Chrome で対応**:
+  - Bundle ID `app.twinmirror.ios` を developer.apple.com で登録
+  - App Store Connect で新規アプリ作成（Name: ツインミラー / SKU: twinmirror-001）
+  - TestFlight ベータ情報入力（ベータ説明、フィードバック email）
+- **ユーザー手作業**:
+  - Xcode で Team を個人アカウントに設定
+  - Product → Archive → Distribute App → App Store Connect Upload
+  - TestFlight 内部テスト確認 → 外部テスト用 Beta App Review 提出
+- **App Review リスク**:
+  - AI生成 + 子ども画像 = ガイドライン4.1/5.0 系で要注意
+  - 「娯楽目的・遺伝予測ではない」ディスクレーマーを維持
+  - 18歳以上写真限定の注意書きを維持
+
+### 主要変更ファイル一覧
+- 新規: `TwinMirror/Services/UsageLimiter.swift`
+- 新規: `TwinMirror/Resources/PrivacyInfo.xcprivacy`
+- 新規: `TwinMirrorTests/UsageLimiterTests.swift`
+- 削除: `TwinMirror/Services/OpenAIImageGenerator.swift`
+- 削除: `TwinMirrorTests/OpenAIImageGeneratorTests.swift`
+- 変更: `TwinMirror/Models/GenerationRequest.swift`（GenerationQuality 削除）
+- 変更: `TwinMirror/Services/GenerationOrchestrator.swift`（quality 分岐撤廃、candidateCount=1 固定）
+- 変更: `TwinMirror/Services/AppConfig.swift`（openAIAPIKey 削除、URL を github.io に）
+- 変更: `TwinMirror/Features/Compose/ComposeView.swift`（AIConsentSheet, usageBadge, qualitySection 削除）
+- 変更: `TwinMirror/Features/Compose/ComposeViewModel.swift`（quality 削除）
+- 変更: `TwinMirror/Features/Result/ResultViewModel.swift`（quality / openAIKey 参照削除）
+- 変更: `TwinMirror/Info.plist`（OPENAI_API_KEY 削除）
+- 変更: `project.yml`（OPENAI_API_KEY 削除）
+- 変更: `TwinMirrorTests/GenerationOrchestratorTests.swift`（書き直し）
+- 変更: `TwinMirrorTests/ResultViewModelTests.swift`（quality 引数削除）
+- 変更: `docs/privacy.html` / `docs/terms.html`
+
+### 発見した問題点・注意事項
+- `static let shared` を `final class` に持たせるには Swift 6 では Sendable 必須。UserDefaults 操作のみで実質スレッドセーフなら `@unchecked Sendable` が最も実用的
+- `xcconfig` の `OPENAI_API_KEY` 行は本物のキー値を含むため、ユーザー側で手動削除推奨（コードからは未参照になっているが、コミット時の誤り防止のため）
+- `gemini-3.1-flash-image-preview` は **candidateCount > 1 を許可しない**（前セッション記録）。1枚固定化はこの仕様にも整合

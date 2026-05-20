@@ -10,33 +10,38 @@
   h2 { font-size: 16px; margin-top: 28px; color: #555; }
   .meta { color: #888; font-size: 12px; margin-bottom: 24px; }
   p, li { font-size: 14px; }
+  .highlight { background: #eef6ff; padding: 12px 16px; border-radius: 8px; border-left: 4px solid #4a90e2; }
 </style>
 </head>
 <body>
   <h1>Twin Mirror プライバシーポリシー</h1>
-  <p class="meta">最終更新日：2026年5月17日</p>
+  <p class="meta">最終更新日：2026年5月20日</p>
+
+  <div class="highlight">
+    <strong>要点：</strong>本アプリは、ユーザーが選択した2枚の顔写真を、画像生成のために Google LLC が提供する Gemini API へ送信します。当アプリの開発者自身のサーバーには写真を保存しません。
+  </div>
 
   <h2>1. 取得する情報</h2>
   <p>本アプリは、以下の情報のみを処理します。</p>
   <ul>
     <li><strong>写真</strong>：ユーザーが選択した2枚の顔写真。生成処理にのみ使用します。</li>
-    <li><strong>性別選択</strong>：生成リクエストのプロンプトに含まれます。</li>
+    <li><strong>性別・年齢の選択</strong>：生成リクエストのプロンプトに含まれます。</li>
+    <li><strong>同意ステータス／利用回数</strong>：端末内（UserDefaults）にのみ保存され、外部送信されません。</li>
   </ul>
   <p>氏名、メールアドレス、位置情報、その他の個人情報は<strong>一切取得しません</strong>。</p>
 
   <h2>2. 利用目的</h2>
-  <p>取得した写真は、子ども画像の生成リクエストを外部のAI画像生成API（Google Gemini API、フォールバック時のみ OpenAI API）へ送信するためにのみ使用されます。</p>
+  <p>取得した写真は、子ども画像の生成リクエストを Google Gemini API へ送信するためにのみ使用されます。本アプリは初回生成前にこの送信について明示的な同意をユーザーから取得します（同意なしには送信されません）。</p>
 
-  <h2>3. 第三者提供</h2>
-  <p>生成処理のため、写真データは以下の事業者に送信されます。</p>
+  <h2>3. 第三者提供（AI 処理）</h2>
+  <p>本アプリは Apple App Store Review Guideline 5.1.2(i)（2025年11月施行）に従い、以下の第三者 AI サービスへの個人データ送信を明示的に開示します。</p>
   <ul>
-    <li>Google LLC（Gemini API）— <a href="https://policies.google.com/privacy">プライバシーポリシー</a></li>
-    <li>OpenAI, L.L.C.（gpt-image-2、フォールバック時のみ）— <a href="https://openai.com/policies/privacy-policy/">プライバシーポリシー</a></li>
+    <li><strong>Google LLC（Gemini API）</strong> — 画像生成処理のため。<a href="https://policies.google.com/privacy">Google プライバシーポリシー</a></li>
   </ul>
   <p>本アプリの開発者自身が運営するサーバーには、写真データを保存しません。</p>
 
   <h2>4. データの保存期間</h2>
-  <p>選択された写真は、生成処理完了後、端末内のメモリから破棄されます。生成された子ども画像は、ユーザーが明示的に「保存」を選択した場合のみ、端末の写真ライブラリに保存されます。</p>
+  <p>選択された写真は、生成処理完了後、端末内のメモリから破棄されます。生成された子ども画像は、ユーザーが明示的に「保存」を選択した場合のみ、端末の写真ライブラリに保存されます。Google 側での画像の保持ポリシーは Google のプライバシーポリシーに従います。</p>
 
   <h2>5. アクセス許可</h2>
   <p>本アプリは以下の権限を要求します。</p>
@@ -46,12 +51,15 @@
   </ul>
 
   <h2>6. トラッキング</h2>
-  <p>本アプリはユーザーのトラッキングを行いません。App Tracking Transparency（ATT）の同意は要求しません。広告SDKやアナリティクスSDKは組み込まれていません。</p>
+  <p>本アプリはユーザーのトラッキングを行いません。App Tracking Transparency（ATT）の同意は要求しません。広告 SDK・アナリティクス SDK・クラッシュレポート SDK は組み込まれていません。</p>
 
-  <h2>7. 子供のプライバシー</h2>
+  <h2>7. 利用回数の制限</h2>
+  <p>本アプリはコスト管理のため、1日あたりの生成回数を端末ローカルで制限しています。この情報は端末内にのみ保存され、外部に送信されることはありません。</p>
+
+  <h2>8. 子供のプライバシー</h2>
   <p>本アプリは18歳未満の方の利用を想定していません。また、未成年者の顔写真の入力は禁止しています。</p>
 
-  <h2>8. 改定</h2>
+  <h2>9. 改定</h2>
   <p>本ポリシーは予告なく改定される場合があります。最新版は常に本ページに掲載されます。</p>
 
   <h2>お問い合わせ</h2>

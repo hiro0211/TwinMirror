@@ -44,77 +44,35 @@ final class GenerationOrchestratorTests: XCTestCase {
         return UIImage(data: data)!
     }
 
-    // MARK: - premium mode (OpenAI) routing
+    // MARK: - default chain composition (Gemini only)
 
-    func test_defaultAttempts_premium_onlyOpenAIWhenKeyPresent() {
-        let attempts = GenerationOrchestrator.defaultAttempts(
-            geminiKey: "g", openAIKey: "sk-real", quality: .premium
-        )
-        XCTAssertEqual(attempts.count, 1,
-                       "premium + OpenAIキーありの時はOpenAI単独")
-        XCTAssertTrue(attempts.first?.generator is OpenAIImageGenerator,
-                      "唯一のattemptはOpenAIでなければならない")
-        XCTAssertEqual(attempts.first?.style, .photorealistic)
-        XCTAssertFalse(attempts.contains(where: { $0.generator is GeminiImageGenerator }),
-                       "premium + OpenAIキーありでGeminiを呼んではいけない")
-    }
-
-    func test_defaultAttempts_premium_fallsBackToGeminiWhenKeyEmpty() {
-        let attempts = GenerationOrchestrator.defaultAttempts(
-            geminiKey: "g", openAIKey: "", quality: .premium
-        )
-        XCTAssertFalse(attempts.contains(where: { $0.generator is OpenAIImageGenerator }))
-        XCTAssertTrue(attempts.first?.generator is GeminiImageGenerator)
-    }
-
-    func test_defaultAttempts_premium_fallsBackToGeminiWhenPlaceholder() {
-        let attempts = GenerationOrchestrator.defaultAttempts(
-            geminiKey: "g",
-            openAIKey: "REPLACE_WITH_YOUR_OPENAI_KEY_OR_EMPTY",
-            quality: .premium
-        )
-        XCTAssertFalse(attempts.contains(where: { $0.generator is OpenAIImageGenerator }))
-    }
-
-    func test_defaultAttempts_premium_endsWithIllustrationFallback_whenOpenAIAbsent() {
-        let attempts = GenerationOrchestrator.defaultAttempts(
-            geminiKey: "g", openAIKey: "", quality: .premium
-        )
-        XCTAssertEqual(attempts.last?.style, .illustration,
-                       "OpenAIキー未設定でpremium指定時もGeminiチェーンの最後はillustration")
-    }
-
-    // MARK: - fast mode (Gemini) routing
-
-    func test_defaultAttempts_fast_usesGeminiOnly_evenWhenOpenAIKeyPresent() {
-        let attempts = GenerationOrchestrator.defaultAttempts(
-            geminiKey: "g", openAIKey: "sk-real", quality: .fast
-        )
-        XCTAssertFalse(attempts.contains(where: { $0.generator is OpenAIImageGenerator }),
-                       "fastモードではOpenAIキーがあってもGeminiのみ使う")
-        XCTAssertTrue(attempts.allSatisfy { $0.generator is GeminiImageGenerator })
+    func test_defaultAttempts_usesGeminiOnly() {
+        let attempts = GenerationOrchestrator.defaultAttempts(geminiKey: "g")
+        XCTAssertTrue(attempts.allSatisfy { $0.generator is GeminiImageGenerator },
+                      "本番チェーンはGeminiのみで構成される（OpenAIは削除済み）")
         XCTAssertGreaterThanOrEqual(attempts.count, 1)
     }
 
-    func test_defaultAttempts_fast_firstAttemptIsNanoBananaPhotoreal() {
-        let attempts = GenerationOrchestrator.defaultAttempts(
-            geminiKey: "g", openAIKey: "sk-real", quality: .fast
-        )
+    func test_defaultAttempts_firstIsNanoBananaPhotoreal() {
+        let attempts = GenerationOrchestrator.defaultAttempts(geminiKey: "g")
         XCTAssertEqual(attempts.first?.style, .photorealistic,
-                       "fastモードはまずNano Banana 2 photorealから")
+                       "1番目は Nano Banana 2 の photorealistic")
     }
 
-    // MARK: - candidate count per quality
-
-    func test_quality_premium_requestsSingleCandidate() {
-        XCTAssertEqual(GenerationQuality.premium.candidateCount, 1,
-                       "プレミアムモードは高画質1枚のみ生成（時間とコストを抑える）")
+    func test_defaultAttempts_lastIsIllustration() {
+        let attempts = GenerationOrchestrator.defaultAttempts(geminiKey: "g")
+        XCTAssertEqual(attempts.last?.style, .illustration,
+                       "最後の砦は illustration スタイル")
     }
 
-    func test_quality_fast_requestsMultipleCandidates() {
-        XCTAssertEqual(GenerationQuality.fast.candidateCount, 3,
-                       "高速モードは候補を複数生成してカルーセル表示")
+    // MARK: - candidate count default
+
+    func test_candidateCount_defaultIsOne() {
+        XCTAssertEqual(GenerationOrchestrator.candidateCount, 1,
+                       "1リクエストあたり1枚生成（コスト最適化）")
     }
+
+    // MARK: - generate behavior
 
     func test_generate_firstSuccess_doesNotCallSubsequent() async throws {
         let log = CallLog()

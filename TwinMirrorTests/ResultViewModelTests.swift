@@ -17,13 +17,12 @@ private final class SpyPhotoSaver: PhotoSaving, @unchecked Sendable {
 @MainActor
 final class ResultViewModelTests: XCTestCase {
 
-    private func anyRequest(quality: GenerationQuality = .fast) -> GenerationRequest {
+    private func anyRequest() -> GenerationRequest {
         GenerationRequest(
             fatherImageData: Data([0x01]),
             motherImageData: Data([0x02]),
             gender: .unspecified,
-            age: ChildAge(years: 7),
-            quality: quality
+            age: ChildAge(years: 7)
         )
     }
 
