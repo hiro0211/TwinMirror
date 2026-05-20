@@ -242,3 +242,36 @@ OpenAI のエラーがそのまま伝播するよう、OpenAI キー有効時は
 - `TwinMirrorTests/ChildAgeTests.swift`（新規、12 tests）
 - `TwinMirrorTests/ChildAgePromptsTests.swift`（新規、9 tests）
 - `TwinMirrorTests/PromptBuilderTests.swift`（新シグネチャに移行、全年齢ループの placeholder 残存チェック追加）
+
+## 2026-05-20
+
+### 高速モード保存バグ修正（ユーザー報告 + 隠れた重大バグ）
+
+#### 報告された現象
+高速モードで3枚のカルーセルを左右にスワイプして「保存」を押すと、表示が真ん中に戻る。
+
+#### 発見した隠れた重大バグ
+表示が戻るだけでなく、**保存される画像も常に真ん中の `bestImage`** だった。左右にスワイプして保存しても、保存されるのは真ん中の画像。ユーザー認識（「保存はできている」）と実態が乖離していた。
+
+#### 根本原因
+- `ResultView.swift`：`TabView(selection: .constant(result.bestIndex))` の constant binding → 再描画で必ず真ん中に戻る。
+- `ResultViewModel.swift`：`saveCurrent()` が常に `result.bestImage` を保存していた。
+
+#### 修正内容（TDD）
+1. `PhotoSaveService.swift`：`PhotoSaving` protocol 追加（DI 用）。
+2. `ResultViewModel.swift`：`saveService` を DI 可能に。`saveCurrent()` → `saveCurrent(at index: Int)` に変更し、`result.images[index]` を保存。範囲外は no-op。
+3. `ResultView.swift`：`@State selectedIndex` を導入。`TabView(selection: $selectedIndex)` で双方向バインド。`onAppear` / `onChange(of: result.images.count)` で再生成時に `bestIndex` にリセット。保存ボタンは `saveCurrent(at: selectedIndex)` を呼ぶ。
+4. `TwinMirrorTests/ResultViewModelTests.swift`（新規・6 tests）：`SpyPhotoSaver` で「index で指定した画像が保存されること」を検証。全 71 テスト緑。
+
+#### 変更ファイル
+- `TwinMirror/Services/PhotoSaveService.swift`
+- `TwinMirror/Features/Result/ResultViewModel.swift`
+- `TwinMirror/Features/Result/ResultView.swift`
+- `TwinMirrorTests/ResultViewModelTests.swift`（新規）
+
+#### 残課題・要手動確認
+- 実機/シミュレータで高速モードを起動して、左→保存→写真アプリで左画像が保存されていることを目視確認すること（自動テストは ViewModel 層までしかカバーできない）。
+- プレミアムモード（1枚のみ）でも保存が機能することを確認。
+
+#### 注意点
+- LSP（SourceKit）が UIKit / XCTest を解決できないノイズが出るが、xcodebuild ではビルド・テストとも成功する環境問題。実害なし。

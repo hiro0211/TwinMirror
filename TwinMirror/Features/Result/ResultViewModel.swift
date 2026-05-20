@@ -19,9 +19,14 @@ final class ResultViewModel {
     let motherImage: UIImage
     private var request: GenerationRequest
     private let orchestrator: GenerationOrchestrator
-    private let saveService: PhotoSaveService
+    private let saveService: PhotoSaving
 
-    init(initialRequest: GenerationRequest, fatherImage: UIImage, motherImage: UIImage) {
+    init(
+        initialRequest: GenerationRequest,
+        fatherImage: UIImage,
+        motherImage: UIImage,
+        saveService: PhotoSaving = PhotoSaveService()
+    ) {
         self.request = initialRequest
         self.gender = initialRequest.gender
         self.fatherImage = fatherImage
@@ -31,7 +36,7 @@ final class ResultViewModel {
             openAIKey: AppConfig.openAIAPIKey,
             quality: initialRequest.quality
         )
-        self.saveService = PhotoSaveService()
+        self.saveService = saveService
     }
 
     func generate() async {
@@ -59,10 +64,11 @@ final class ResultViewModel {
         await generate()
     }
 
-    func saveCurrent() async {
+    func saveCurrent(at index: Int) async {
         guard case .done(let result) = phase else { return }
+        guard result.images.indices.contains(index) else { return }
         do {
-            try await saveService.save(result.bestImage)
+            try await saveService.save(result.images[index])
             savedToast = "保存しました"
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
             Task {

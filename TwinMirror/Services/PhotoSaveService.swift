@@ -16,7 +16,11 @@ enum PhotoSaveError: Error, LocalizedError {
     }
 }
 
-struct PhotoSaveService {
+protocol PhotoSaving: Sendable {
+    func save(_ image: UIImage) async throws
+}
+
+struct PhotoSaveService: PhotoSaving {
     func save(_ image: UIImage) async throws {
         let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
         guard status == .authorized || status == .limited else {

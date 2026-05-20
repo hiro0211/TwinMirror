@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ResultView: View {
     @State private var viewModel: ResultViewModel
+    @State private var selectedIndex: Int = 0
 
     init(initialRequest: GenerationRequest, fatherImage: UIImage, motherImage: UIImage) {
         _viewModel = State(initialValue: ResultViewModel(
@@ -46,7 +47,7 @@ struct ResultView: View {
         VStack(spacing: Theme.Spacing.l) {
             Spacer()
 
-            TabView(selection: .constant(result.bestIndex)) {
+            TabView(selection: $selectedIndex) {
                 ForEach(Array(result.images.enumerated()), id: \.offset) { index, image in
                     Image(uiImage: image)
                         .resizable()
@@ -58,6 +59,14 @@ struct ResultView: View {
             }
             .tabViewStyle(.page(indexDisplayMode: .always))
             .frame(maxHeight: 480)
+            .onAppear {
+                if !result.images.indices.contains(selectedIndex) {
+                    selectedIndex = result.bestIndex
+                }
+            }
+            .onChange(of: result.images.count) { _, _ in
+                selectedIndex = result.bestIndex
+            }
 
             if result.usedStyle == .illustration {
                 Text("（イラスト風で生成しました）")
@@ -67,7 +76,7 @@ struct ResultView: View {
 
             HStack(spacing: Theme.Spacing.m) {
                 GlassButton(tint: Theme.Colors.accent, action: {
-                    Task { await viewModel.saveCurrent() }
+                    Task { await viewModel.saveCurrent(at: selectedIndex) }
                 }) {
                     Label("保存", systemImage: "square.and.arrow.down")
                 }
