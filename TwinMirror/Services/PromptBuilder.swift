@@ -11,11 +11,11 @@ struct PromptBuilder {
         self.bundle = bundle
     }
 
-    func build(style: GenerationStyle, gender: BabyGender) throws -> String {
+    func build(style: GenerationStyle, gender: ChildGender, age: ChildAge) throws -> String {
         let templateName: String
         switch style {
-        case .photorealistic: templateName = "baby_realistic_v1"
-        case .illustration:   templateName = "baby_illustration_v1"
+        case .photorealistic: templateName = "child_realistic_v2"
+        case .illustration:   templateName = "child_illustration_v2"
         }
 
         guard let url = bundle.url(forResource: templateName, withExtension: "txt"),
@@ -23,6 +23,8 @@ struct PromptBuilder {
             throw PromptBuilderError.templateNotFound(name: templateName)
         }
 
-        return template.replacingOccurrences(of: "{{GENDER}}", with: gender.promptValue)
+        return template
+            .replacingOccurrences(of: "{{GENDER}}", with: gender.promptValue)
+            .replacingOccurrences(of: "{{AGE_BLOCK}}", with: ChildAgePrompts.block(for: age))
     }
 }

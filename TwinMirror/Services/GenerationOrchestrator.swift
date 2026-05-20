@@ -76,7 +76,7 @@ struct GenerationOrchestrator {
         var lastError: Error?
         for attempt in attempts {
             do {
-                let prompt = try promptBuilder.build(style: attempt.style, gender: request.gender)
+                let prompt = try promptBuilder.build(style: attempt.style, gender: request.gender, age: request.age)
                 let images = try await attempt.generator.generate(request: request, prompt: prompt, count: candidateCount)
                 guard !images.isEmpty else {
                     throw ImageGenerationError.noImageReturned

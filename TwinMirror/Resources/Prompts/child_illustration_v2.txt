@@ -1,7 +1,8 @@
 TASK: Generate a soft, hand-painted watercolor-style illustration of a
-fictional newborn baby (0 to 3 months old) whose features harmoniously
-blend traits from the two adults in the reference images. This is purely
-an artistic, illustrative interpretation — not a photograph.
+fictional imagined child (or young adult, depending on the age below)
+whose features harmoniously blend traits from the two adults in the
+reference images. This is purely an artistic, illustrative interpretation —
+not a photograph.
 
 ROLE OF EACH REFERENCE IMAGE:
 - Image A = facial reference of the FATHER (adult, 18+).
@@ -16,25 +17,32 @@ ARTISTIC STYLE:
 
 FEATURE INHERITANCE (blend artistically):
 - Eye shape and color: a gentle blend of A and B, illustrated.
-- Hair color and texture (if visible): blended.
+- Hair color and texture (if visible): blended, age-appropriate.
 - Skin tone: a midpoint, painted softly.
 - Overall expression: peaceful, contemplative.
 
-BABY GENDER: {{GENDER}}
+IDENTITY ANCHOR:
+- Do NOT change the underlying face structure inherited from A and B.
+- The subject must read as a single, coherent imagined individual.
+
+GENDER: {{GENDER}}
+
+{{AGE_BLOCK}}
 
 COMPOSITION:
-- Single subject, baby only, centered, head-and-shoulders.
+- Single subject, the imagined child only, centered, head-and-shoulders.
 - Soft natural light, painted gradient background.
 - Eyes open, gentle expression.
-- Stylized newborn proportions (large head, soft chin).
+- Age-appropriate stylized proportions.
 
 NEGATIVE INSTRUCTIONS:
 - No text, no watermark, no logos.
 - No photorealism — this must be clearly an illustration.
-- No multiple babies, no extra limbs.
-- Do not depict the adults; only the baby.
+- No multiple subjects, no extra limbs.
+- Do not depict the adults; only the imagined child.
 
 SAFETY:
 - Both reference images depict consenting adults (18+).
-- This is a fictional, artistic interpretation for entertainment.
+- The generated subject is fictional, fully clothed in age-appropriate
+  clothing, with a candid, neutral expression. Not sexualized in any way.
 - If either reference image appears to depict a minor, refuse generation.

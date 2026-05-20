@@ -1,7 +1,7 @@
 import Foundation
 import UIKit
 
-enum BabyGender: String, CaseIterable, Sendable {
+enum ChildGender: String, CaseIterable, Sendable {
     case female
     case male
     case unspecified
@@ -19,6 +19,47 @@ enum BabyGender: String, CaseIterable, Sendable {
         case .female: return "female"
         case .male: return "male"
         case .unspecified: return "unspecified — let the model decide"
+        }
+    }
+}
+
+struct ChildAge: Sendable, Hashable, Identifiable {
+    let years: Int
+
+    static let minYears = 0
+    static let maxYears = 20
+    static let allYears = Array(minYears...maxYears)
+    static let `default` = ChildAge(years: 5)
+
+    init(years: Int) {
+        self.years = years
+    }
+
+    static func clamped(years: Int) -> ChildAge {
+        ChildAge(years: min(maxYears, max(minYears, years)))
+    }
+
+    var id: Int { years }
+    var displayName: String { "\(years)歳" }
+    var isMajorTick: Bool { years % 5 == 0 }
+
+    enum Bucket: Sendable, Equatable {
+        case newborn      // 0–1
+        case toddler      // 2–4
+        case child        // 5–9
+        case preteen      // 10–12
+        case teen         // 13–17
+        case youngAdult   // 18–20
+    }
+
+    var bucket: Bucket {
+        switch years {
+        case ...1:    return .newborn
+        case 2...4:   return .toddler
+        case 5...9:   return .child
+        case 10...12: return .preteen
+        case 13...17: return .teen
+        default:      return .youngAdult
         }
     }
 }
@@ -64,18 +105,21 @@ enum GenerationQuality: String, CaseIterable, Sendable {
 struct GenerationRequest: Sendable {
     let fatherImageData: Data
     let motherImageData: Data
-    let gender: BabyGender
+    let gender: ChildGender
+    let age: ChildAge
     let quality: GenerationQuality
 
     init(
         fatherImageData: Data,
         motherImageData: Data,
-        gender: BabyGender,
+        gender: ChildGender,
+        age: ChildAge = .default,
         quality: GenerationQuality = .fast
     ) {
         self.fatherImageData = fatherImageData
         self.motherImageData = motherImageData
         self.gender = gender
+        self.age = age
         self.quality = quality
     }
 }

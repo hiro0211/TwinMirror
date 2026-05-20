@@ -17,14 +17,14 @@ struct HomeView: View {
                             .foregroundStyle(Theme.Colors.textSecondary)
                             .tracking(4)
 
-                        Text("2人の写真で、\n未来の赤ちゃんに会う。")
+                        Text("2人の写真で、\n未来の子どもに会う。")
                             .font(.system(size: 30, weight: .bold, design: .rounded))
                             .multilineTextAlignment(.center)
                             .foregroundStyle(Theme.Colors.textPrimary)
                             .padding(.horizontal, Theme.Spacing.m)
                     }
 
-                    Text("写真2枚から、AIがあなたとパートナーの\n未来の赤ちゃんを描きます。")
+                    Text("写真2枚から、AIがあなたとパートナーの\n未来の子どもを描きます。")
                         .font(.system(size: 14))
                         .foregroundStyle(Theme.Colors.textSecondary)
                         .multilineTextAlignment(.center)
@@ -40,7 +40,7 @@ struct HomeView: View {
                     GlassButton(isProminent: true, action: {
                         isComposeShown = true
                     }) {
-                        Text("2人の写真で赤ちゃんを見る →")
+                        Text("2人の写真で子どもを見る →")
                     }
                     .padding(.horizontal, Theme.Spacing.l)
 

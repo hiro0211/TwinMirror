@@ -175,3 +175,70 @@ OpenAI のエラーがそのまま伝播するよう、OpenAI キー有効時は
 
 ### 変更したファイル
 - `TwinMirror/Features/Compose/ComposeView.swift`
+
+## 2026-05-19
+
+### 作業内容
+- 「赤ちゃん」→「子ども」の全面リネーム（UI / Info.plist / project.yml / 利用規約・プライバシー HTML / README）
+- 生成対象年齢を **0〜20歳の連続レンジ**に拡張。ComposeView に **横スクロール年齢ピッカー `AgeRulerPicker`** を新設
+- ピッカーは iOS 26 純正 API（`.scrollPosition(id:)` + `.scrollTargetBehavior(.viewAligned)` + `.sensoryFeedback(.selection, trigger:)` + `.glassEffect(...)`）で実装。実機ではティック切替ごとに触覚（`UISelectionFeedbackGenerator` 相当）が発火
+- `ChildAge` 値型を追加（years + bucket: newborn/toddler/child/preteen/teen/youngAdult）。0〜20 を 6 バケットへマッピングしてプロンプト断片を生成
+- `BabyGender` → `ChildGender` 全面リネーム（型名のみ、case 名は不変なので呼び出し側のリテラル変更は最小限）
+- プロンプトテンプレートを `baby_*_v1.txt` → `child_*_v2.txt` に刷新。`{{AGE_BLOCK}}` プレースホルダで年齢ブロックを Swift 側から差し込む構造に
+- 計画: `/Users/arimurahiroaki/.claude/plans/0-5-10-15-warm-canyon.md`
+
+### 検証結果
+- `xcodegen generate` 成功
+- `xcodebuild build`: BUILD SUCCEEDED（iPhone 17 Pro simulator, iOS 26.2）
+- `xcodebuild test`: **TEST SUCCEEDED, 65 tests passed, 0 failures**（前回37 → 今回65、+28テスト追加）
+- 追加テスト: `ChildAgeTests`(12) / `ChildAgePromptsTests`(9) / 拡張した `PromptBuilderTests`(8) で全年齢×全スタイル×全 gender のプレースホルダ残存チェック網羅
+
+### 次回やるべきこと
+- **必須・実機**: AgeRulerPicker のスクロール触覚 (`UISelectionFeedbackGenerator`) が期待どおり鳴るか実機で確認（シミュレータでは触覚は再生されない）
+- **必須・実機**: 0/3/7/12/18/20 歳を順に生成し、(a) 顔の同一性、(b) 年齢らしさ、(c) バケット境界でジャンプ感がないか目視
+- **次フェーズ**: 0/5/10/15/20 の **同セッション並列タイムライン生成**（5タイル段階表示 + TaskGroup 並列 + per-age cache）
+- **次フェーズ・優先度高**: 18歳ゲート + 第三者AI同意フロー（Apple Guideline 5.1.2(i) 2025-11 更新）+ 結果画像へ AI 透かし焼き込み
+- **次フェーズ**: 二段マスター肖像パイプライン（identity 一貫性最大化）
+- **オペレーション**: TikTok スパイク前に Gemini Tier 2 ($250 cumulative spend) と OpenAI Tier 2 へ昇格
+
+### 発見した問題点・注意事項
+- **`.scrollPosition(id: $optionalInt)`**: バインディングは `Int?` 必須。`age.years` (`Int`) との同期は `onChange` 二方向で行うが、`onAppear` で初回 `scrolledYear = age.years` を入れないと初期スクロール位置が左端になる
+- **Gemini も OpenAI もシード固定不可**: 年齢間で同一個体性を保つには **プロンプトのみで identity-anchor 文を強化する**しかない（"Do NOT change underlying face structure inherited from A and B" を共通文に常駐させた）。次フェーズの二段マスター肖像パイプラインで根本対策
+- **`candidateCount > 1` は Gemini 3.1 Flash Image では 400 を返す**（リサーチで確認、Google AI Forum 2026 記事）。タイムライン化する際は **5 並列リクエスト**で対応する必要あり
+- **`@State` で持つ `@Observable` ViewModel への `$Binding`**: SwiftUI iOS 17+ の `@Bindable var vm = viewModel` を computed property 内で宣言する書き方で対応。`$viewModel.x` 直接は使えない
+- **SourceKit の `Cannot find ... in scope` 警告**: 編集中に頻発するが、`xcodegen generate` 直後は project の index が古いだけで実害なし。`xcodebuild build` で実証する運用が確実
+
+### 変更したファイル
+
+#### モデル / Services
+- `TwinMirror/Models/GenerationRequest.swift`（`ChildGender` リネーム、`ChildAge` struct 新設、`GenerationRequest.age` 追加）
+- `TwinMirror/Services/ChildAgePrompts.swift`（新規、バケット別プロンプト断片）
+- `TwinMirror/Services/PromptBuilder.swift`（`build(style:gender:age:)` シグネチャ、新テンプレ名）
+- `TwinMirror/Services/GenerationOrchestrator.swift`（`age` を PromptBuilder に渡す1行追加）
+
+#### リソース
+- `TwinMirror/Resources/Prompts/child_realistic_v2.txt`（新規）
+- `TwinMirror/Resources/Prompts/child_illustration_v2.txt`（新規）
+- `TwinMirror/Resources/Prompts/baby_realistic_v1.txt`（削除）
+- `TwinMirror/Resources/Prompts/baby_illustration_v1.txt`（削除）
+
+#### UI / DesignSystem
+- `TwinMirror/DesignSystem/AgeRulerPicker.swift`（新規、横スクロールルーラー）
+- `TwinMirror/DesignSystem/GlassButton.swift`（プレビュー文言更新）
+- `TwinMirror/Features/Compose/ComposeView.swift`（年齢セクション挿入、ナビ/CTA/性別参照のリネーム）
+- `TwinMirror/Features/Compose/ComposeViewModel.swift`（`age` プロパティ、`ChildGender` 参照）
+- `TwinMirror/Features/Home/HomeView.swift`（文言3箇所）
+- `TwinMirror/Features/Result/ResultView.swift`（`ChildGender.allCases` リネーム）
+- `TwinMirror/Features/Result/ResultViewModel.swift`（`ChildGender` 参照、再生成で `age` を維持）
+
+#### 設定 / ドキュメント
+- `TwinMirror/Info.plist`（NSPhotoLibrary* descriptions の「赤ちゃん」→「子ども」）
+- `project.yml`（同上）
+- `README.md`（製品定義拡張）
+- `docs/privacy.html`（「赤ちゃん」→「子ども」x2）
+- `docs/terms.html`（製品定義拡張）
+
+#### テスト（新規・拡張）
+- `TwinMirrorTests/ChildAgeTests.swift`（新規、12 tests）
+- `TwinMirrorTests/ChildAgePromptsTests.swift`（新規、9 tests）
+- `TwinMirrorTests/PromptBuilderTests.swift`（新シグネチャに移行、全年齢ループの placeholder 残存チェック追加）

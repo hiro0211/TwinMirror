@@ -81,7 +81,7 @@ struct ResultView: View {
             .padding(.horizontal, Theme.Spacing.l)
 
             HStack(spacing: Theme.Spacing.s) {
-                ForEach(BabyGender.allCases, id: \.self) { g in
+                ForEach(ChildGender.allCases, id: \.self) { g in
                     GlassChip(
                         title: g.displayName,
                         isSelected: viewModel.gender == g,

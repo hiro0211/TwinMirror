@@ -16,6 +16,7 @@ struct ComposeView: View {
                 VStack(spacing: Theme.Spacing.l) {
                     titleSection
                     photoCardsSection
+                    ageSection
                     genderSection
                     qualitySection
                     instructionsSection
@@ -32,7 +33,7 @@ struct ComposeView: View {
                     .background(.regularMaterial, in: .rect(cornerRadius: 12))
             }
         }
-        .navigationTitle("赤ちゃんを生成")
+        .navigationTitle("子どもを生成")
         .navigationBarTitleDisplayMode(.inline)
         .alert("エラー", isPresented: Binding(
             get: { viewModel.errorMessage != nil },
@@ -90,13 +91,23 @@ struct ComposeView: View {
         }
     }
 
+    private var ageSection: some View {
+        @Bindable var vm = viewModel
+        return VStack(alignment: .leading, spacing: Theme.Spacing.s) {
+            Text("年齢")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(Theme.Colors.textPrimary)
+            AgeRulerPicker(age: $vm.age)
+        }
+    }
+
     private var genderSection: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.s) {
             Text("性別")
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(Theme.Colors.textPrimary)
             HStack(spacing: Theme.Spacing.s) {
-                ForEach(BabyGender.allCases, id: \.self) { g in
+                ForEach(ChildGender.allCases, id: \.self) { g in
                     GlassChip(
                         title: g.displayName,
                         isSelected: viewModel.gender == g,
@@ -161,7 +172,7 @@ struct ComposeView: View {
                 }
             }
         ) {
-            Text("赤ちゃんを生成する")
+            Text("子どもを生成する")
         }
         .padding(.top, Theme.Spacing.s)
     }

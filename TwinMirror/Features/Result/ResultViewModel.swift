@@ -13,7 +13,7 @@ final class ResultViewModel {
 
     var phase: Phase = .loading
     var savedToast: String?
-    var gender: BabyGender
+    var gender: ChildGender
 
     let fatherImage: UIImage
     let motherImage: UIImage
@@ -47,12 +47,13 @@ final class ResultViewModel {
         }
     }
 
-    func regenerate(with newGender: BabyGender) async {
+    func regenerate(with newGender: ChildGender) async {
         gender = newGender
         request = GenerationRequest(
             fatherImageData: request.fatherImageData,
             motherImageData: request.motherImageData,
             gender: newGender,
+            age: request.age,
             quality: request.quality
         )
         await generate()

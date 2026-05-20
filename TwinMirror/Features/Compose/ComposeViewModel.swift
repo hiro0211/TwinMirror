@@ -21,7 +21,8 @@ final class ComposeViewModel {
     var motherImage: UIImage?
     var fatherFace: DetectedFace?
     var motherFace: DetectedFace?
-    var gender: BabyGender = .unspecified
+    var gender: ChildGender = .unspecified
+    var age: ChildAge = .default
     var quality: GenerationQuality = .fast
     var errorMessage: String?
     var isProcessingFace: Bool = false
@@ -75,6 +76,7 @@ final class ComposeViewModel {
             fatherImageData: fatherData,
             motherImageData: motherData,
             gender: gender,
+            age: age,
             quality: quality
         )
     }

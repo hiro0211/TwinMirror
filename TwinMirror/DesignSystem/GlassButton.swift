@@ -56,7 +56,7 @@ struct GlassButton<Label: View>: View {
         Theme.Gradients.background.ignoresSafeArea()
         VStack(spacing: 16) {
             GlassButton(isProminent: true, action: {}) {
-                Text("2人の写真で赤ちゃんを見る →")
+                Text("2人の写真で子どもを見る →")
             }
             GlassButton(tint: Theme.Colors.accent, action: {}) {
                 Text("読み込む")

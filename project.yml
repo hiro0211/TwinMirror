@@ -39,8 +39,8 @@ targets:
           - UIInterfaceOrientationPortrait
         UIRequiredDeviceCapabilities:
           - arm64
-        NSPhotoLibraryUsageDescription: 2人の写真を選んで赤ちゃん画像を生成するために、写真ライブラリへのアクセスを使用します。
-        NSPhotoLibraryAddUsageDescription: 生成された赤ちゃん画像を写真ライブラリに保存するために使用します。
+        NSPhotoLibraryUsageDescription: 2人の写真を選んで子ども画像を生成するために、写真ライブラリへのアクセスを使用します。
+        NSPhotoLibraryAddUsageDescription: 生成された子ども画像を写真ライブラリに保存するために使用します。
         ITSAppUsesNonExemptEncryption: false
         GEMINI_API_KEY: $(GEMINI_API_KEY)
         OPENAI_API_KEY: $(OPENAI_API_KEY)
