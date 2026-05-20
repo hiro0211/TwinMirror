@@ -2,67 +2,336 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#FFE9F2">
 <title>Twin Mirror プライバシーポリシー</title>
+<link rel="icon" href="AppIcon.png" type="image/png">
 <style>
-  body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif; max-width: 720px; margin: 32px auto; padding: 0 16px; color: #222; line-height: 1.7; }
-  h1 { font-size: 22px; margin-bottom: 8px; }
-  h2 { font-size: 16px; margin-top: 28px; color: #555; }
-  .meta { color: #888; font-size: 12px; margin-bottom: 24px; }
-  p, li { font-size: 14px; }
-  .highlight { background: #eef6ff; padding: 12px 16px; border-radius: 8px; border-left: 4px solid #4a90e2; }
+  :root {
+    --pink: rgb(255, 170, 225);
+    --pink-deep: rgb(242, 115, 191);
+    --accent: rgb(115, 191, 255);
+    --cream: rgb(255, 247, 237);
+    --text-primary: rgb(38, 26, 51);
+    --text-secondary: rgb(115, 102, 128);
+    --bg-1: rgb(255, 240, 245);
+    --bg-2: rgb(245, 235, 255);
+    --bg-3: rgb(235, 245, 255);
+    --glass-tint: rgba(255, 255, 255, 0.55);
+    --glass-tint-strong: rgba(255, 255, 255, 0.78);
+    --glass-border: rgba(255, 255, 255, 0.6);
+    --shadow-soft: 0 8px 32px rgba(120, 80, 140, 0.10);
+    --shadow-card: 0 4px 24px rgba(120, 80, 140, 0.08);
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", system-ui, sans-serif;
+    color: var(--text-primary);
+    line-height: 1.75;
+    min-height: 100vh;
+    background:
+      radial-gradient(ellipse at 80% -10%, rgba(255, 170, 225, 0.35) 0%, transparent 50%),
+      radial-gradient(ellipse at -10% 110%, rgba(115, 191, 255, 0.30) 0%, transparent 50%),
+      linear-gradient(135deg, var(--bg-1) 0%, var(--bg-2) 50%, var(--bg-3) 100%);
+    background-attachment: fixed;
+    padding: 0 16px env(safe-area-inset-bottom);
+  }
+
+  .container {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 32px 0 64px;
+  }
+
+  /* Hero */
+  .hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 24px 0 36px;
+    gap: 16px;
+  }
+
+  .hero img.icon {
+    width: 96px;
+    height: 96px;
+    border-radius: 22px;
+    box-shadow: var(--shadow-soft);
+    background: white;
+  }
+
+  .hero h1 {
+    font-size: 28px;
+    font-weight: 800;
+    margin: 0;
+    letter-spacing: -0.02em;
+    background: linear-gradient(135deg, var(--pink-deep), rgb(180, 90, 220));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    font-family: -apple-system-rounded, ui-rounded, -apple-system, system-ui, sans-serif;
+  }
+
+  .hero .meta {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-top: -4px;
+  }
+
+  /* Nav pills */
+  .nav {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin: 8px 0 28px;
+    flex-wrap: wrap;
+  }
+  .nav a {
+    padding: 8px 16px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    color: var(--text-secondary);
+    background: var(--glass-tint);
+    backdrop-filter: blur(16px) saturate(160%);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+    border: 1px solid var(--glass-border);
+    transition: transform 0.15s ease, color 0.15s ease;
+  }
+  .nav a:hover { transform: translateY(-1px); color: var(--text-primary); }
+  .nav a.active {
+    color: white;
+    background: linear-gradient(135deg, var(--pink), var(--pink-deep));
+    border-color: transparent;
+  }
+
+  /* Glass cards */
+  .card {
+    background: var(--glass-tint-strong);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid var(--glass-border);
+    border-radius: 24px;
+    padding: 24px 26px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow-card);
+  }
+
+  .card.highlight {
+    background: linear-gradient(135deg, rgba(255, 232, 244, 0.85), rgba(232, 240, 255, 0.85));
+    border-color: rgba(242, 115, 191, 0.2);
+  }
+
+  h2 {
+    font-size: 17px;
+    font-weight: 700;
+    margin: 0 0 12px;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: -apple-system-rounded, ui-rounded, -apple-system, system-ui, sans-serif;
+  }
+
+  h2 .num {
+    display: inline-flex;
+    width: 28px;
+    height: 28px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--pink), var(--pink-deep));
+    color: white;
+    font-size: 13px;
+    font-weight: 700;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  p, li { font-size: 14.5px; margin: 0 0 10px; color: var(--text-primary); }
+  p:last-child, li:last-child { margin-bottom: 0; }
+
+  strong { color: var(--pink-deep); font-weight: 700; }
+
+  ul {
+    padding-left: 0;
+    list-style: none;
+    margin: 8px 0 0;
+  }
+  ul li {
+    position: relative;
+    padding-left: 22px;
+    margin-bottom: 8px;
+  }
+  ul li::before {
+    content: "";
+    position: absolute;
+    left: 4px;
+    top: 11px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--pink), var(--pink-deep));
+  }
+
+  a.inline { color: var(--pink-deep); text-decoration: none; border-bottom: 1px dashed rgba(242,115,191,0.4); }
+  a.inline:hover { border-bottom-style: solid; }
+
+  .footer {
+    text-align: center;
+    margin-top: 40px;
+    color: var(--text-secondary);
+    font-size: 12px;
+  }
+  .footer a { color: var(--text-secondary); }
+
+  /* Highlight box content */
+  .highlight-content {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .highlight-content .badge {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--pink), var(--pink-deep));
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    box-shadow: 0 4px 12px rgba(242, 115, 191, 0.3);
+  }
+  .highlight-content p { margin: 0; font-size: 14px; }
+  .highlight-content strong { display: block; margin-bottom: 4px; }
+
+  @media (max-width: 480px) {
+    .container { padding: 20px 0 40px; }
+    .hero h1 { font-size: 24px; }
+    .card { padding: 20px 18px; border-radius: 20px; }
+    h2 { font-size: 16px; }
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --text-primary: rgb(245, 240, 250);
+      --text-secondary: rgb(190, 175, 200);
+      --glass-tint: rgba(40, 25, 55, 0.55);
+      --glass-tint-strong: rgba(40, 25, 55, 0.75);
+      --glass-border: rgba(255, 255, 255, 0.10);
+    }
+    body {
+      background:
+        radial-gradient(ellipse at 80% -10%, rgba(242, 115, 191, 0.25) 0%, transparent 50%),
+        radial-gradient(ellipse at -10% 110%, rgba(115, 191, 255, 0.20) 0%, transparent 50%),
+        linear-gradient(135deg, rgb(28, 18, 38) 0%, rgb(22, 18, 40) 50%, rgb(18, 22, 42) 100%);
+    }
+    .card.highlight {
+      background: linear-gradient(135deg, rgba(80, 30, 60, 0.75), rgba(40, 30, 70, 0.75));
+    }
+  }
 </style>
 </head>
 <body>
-  <h1>Twin Mirror プライバシーポリシー</h1>
-  <p class="meta">最終更新日：2026年5月20日</p>
+<div class="container">
 
-  <div class="highlight">
-    <strong>要点：</strong>本アプリは、ユーザーが選択した2枚の顔写真を、画像生成のために Google LLC が提供する Gemini API へ送信します。当アプリの開発者自身のサーバーには写真を保存しません。
-  </div>
+  <header class="hero">
+    <img src="AppIcon.png" alt="Twin Mirror" class="icon" onerror="this.style.display='none'">
+    <div>
+      <h1>プライバシーポリシー</h1>
+      <div class="meta">Twin Mirror（ツインミラー）　最終更新：2026年5月20日</div>
+    </div>
+  </header>
 
-  <h2>1. 取得する情報</h2>
-  <p>本アプリは、以下の情報のみを処理します。</p>
-  <ul>
-    <li><strong>写真</strong>：ユーザーが選択した2枚の顔写真。生成処理にのみ使用します。</li>
-    <li><strong>性別・年齢の選択</strong>：生成リクエストのプロンプトに含まれます。</li>
-    <li><strong>同意ステータス／利用回数</strong>：端末内（UserDefaults）にのみ保存され、外部送信されません。</li>
-  </ul>
-  <p>氏名、メールアドレス、位置情報、その他の個人情報は<strong>一切取得しません</strong>。</p>
+  <nav class="nav">
+    <a href="privacy.html" class="active">プライバシーポリシー</a>
+    <a href="terms.html">利用規約</a>
+  </nav>
 
-  <h2>2. 利用目的</h2>
-  <p>取得した写真は、子ども画像の生成リクエストを Google Gemini API へ送信するためにのみ使用されます。本アプリは初回生成前にこの送信について明示的な同意をユーザーから取得します（同意なしには送信されません）。</p>
+  <section class="card highlight">
+    <div class="highlight-content">
+      <div class="badge">✓</div>
+      <p>
+        <strong>要点</strong>
+        本アプリは、選択した2枚の顔写真を画像生成のために Google LLC の Gemini API へ送信します。送信前にユーザーから明示的な同意を取得し、当アプリの開発者サーバーには写真を保存しません。
+      </p>
+    </div>
+  </section>
 
-  <h2>3. 第三者提供（AI 処理）</h2>
-  <p>本アプリは Apple App Store Review Guideline 5.1.2(i)（2025年11月施行）に従い、以下の第三者 AI サービスへの個人データ送信を明示的に開示します。</p>
-  <ul>
-    <li><strong>Google LLC（Gemini API）</strong> — 画像生成処理のため。<a href="https://policies.google.com/privacy">Google プライバシーポリシー</a></li>
-  </ul>
-  <p>本アプリの開発者自身が運営するサーバーには、写真データを保存しません。</p>
+  <section class="card">
+    <h2><span class="num">1</span>取得する情報</h2>
+    <p>本アプリは、以下の情報のみを処理します。</p>
+    <ul>
+      <li><strong>写真</strong>：ユーザーが選択した2枚の顔写真。生成処理にのみ使用します。</li>
+      <li><strong>性別・年齢の選択</strong>：生成リクエストのプロンプトに含まれます。</li>
+      <li><strong>同意ステータス／利用回数</strong>：端末内（UserDefaults）にのみ保存され、外部送信されません。</li>
+    </ul>
+    <p style="margin-top:12px;">氏名、メールアドレス、位置情報、その他の個人情報は<strong>一切取得しません</strong>。</p>
+  </section>
 
-  <h2>4. データの保存期間</h2>
-  <p>選択された写真は、生成処理完了後、端末内のメモリから破棄されます。生成された子ども画像は、ユーザーが明示的に「保存」を選択した場合のみ、端末の写真ライブラリに保存されます。Google 側での画像の保持ポリシーは Google のプライバシーポリシーに従います。</p>
+  <section class="card">
+    <h2><span class="num">2</span>利用目的</h2>
+    <p>取得した写真は、子ども画像の生成リクエストを Google Gemini API へ送信するためにのみ使用されます。本アプリは初回生成前にこの送信について<strong>明示的な同意</strong>をユーザーから取得します。同意なしに写真が送信されることはありません。</p>
+  </section>
 
-  <h2>5. アクセス許可</h2>
-  <p>本アプリは以下の権限を要求します。</p>
-  <ul>
-    <li><strong>写真ライブラリの読み取り</strong>：入力写真を選択するため。</li>
-    <li><strong>写真ライブラリへの書き込み</strong>：生成結果を保存するため（任意）。</li>
-  </ul>
+  <section class="card">
+    <h2><span class="num">3</span>第三者提供（AI 処理）</h2>
+    <p>本アプリは Apple App Store Review Guideline 5.1.2(i)（2025年11月施行）に従い、以下の第三者 AI サービスへの個人データ送信を明示的に開示します。</p>
+    <ul>
+      <li><strong>Google LLC（Gemini API）</strong> — 画像生成処理のため。<a class="inline" href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google プライバシーポリシー</a></li>
+    </ul>
+    <p style="margin-top:12px;">本アプリの開発者自身が運営するサーバーには、写真データを保存しません。</p>
+  </section>
 
-  <h2>6. トラッキング</h2>
-  <p>本アプリはユーザーのトラッキングを行いません。App Tracking Transparency（ATT）の同意は要求しません。広告 SDK・アナリティクス SDK・クラッシュレポート SDK は組み込まれていません。</p>
+  <section class="card">
+    <h2><span class="num">4</span>データの保存期間</h2>
+    <p>選択された写真は、生成処理完了後、端末内のメモリから破棄されます。生成された子ども画像は、ユーザーが明示的に「保存」を選択した場合のみ、端末の写真ライブラリに保存されます。Google 側での画像の保持ポリシーは Google のプライバシーポリシーに従います。</p>
+  </section>
 
-  <h2>7. 利用回数の制限</h2>
-  <p>本アプリはコスト管理のため、1日あたりの生成回数を端末ローカルで制限しています。この情報は端末内にのみ保存され、外部に送信されることはありません。</p>
+  <section class="card">
+    <h2><span class="num">5</span>アクセス許可</h2>
+    <p>本アプリは以下の権限を要求します。</p>
+    <ul>
+      <li><strong>写真ライブラリの読み取り</strong>：入力写真を選択するため。</li>
+      <li><strong>写真ライブラリへの書き込み</strong>：生成結果を保存するため（任意）。</li>
+    </ul>
+  </section>
 
-  <h2>8. 子供のプライバシー</h2>
-  <p>本アプリは18歳未満の方の利用を想定していません。また、未成年者の顔写真の入力は禁止しています。</p>
+  <section class="card">
+    <h2><span class="num">6</span>トラッキング</h2>
+    <p>本アプリは<strong>ユーザーのトラッキングを行いません</strong>。App Tracking Transparency（ATT）の同意は要求しません。広告 SDK・アナリティクス SDK・クラッシュレポート SDK は組み込まれていません。</p>
+  </section>
 
-  <h2>9. 改定</h2>
-  <p>本ポリシーは予告なく改定される場合があります。最新版は常に本ページに掲載されます。</p>
+  <section class="card">
+    <h2><span class="num">7</span>利用回数の制限</h2>
+    <p>本アプリはコスト管理のため、1日あたりの生成回数を端末ローカルで制限しています。この情報は端末内にのみ保存され、外部に送信されることはありません。</p>
+  </section>
 
-  <h2>お問い合わせ</h2>
-  <p>arimurahiroaki40@gmail.com</p>
+  <section class="card">
+    <h2><span class="num">8</span>子供のプライバシー</h2>
+    <p>本アプリは<strong>18歳未満の方の利用を想定していません</strong>。また、未成年者の顔写真の入力は禁止しています。</p>
+  </section>
+
+  <section class="card">
+    <h2><span class="num">9</span>改定</h2>
+    <p>本ポリシーは予告なく改定される場合があります。最新版は常に本ページに掲載されます。</p>
+  </section>
+
+  <section class="card">
+    <h2><span class="num">＠</span>お問い合わせ</h2>
+    <p><a class="inline" href="mailto:arimurahiroaki40@gmail.com">arimurahiroaki40@gmail.com</a></p>
+  </section>
+
+  <footer class="footer">
+    © 2026 Twin Mirror · <a href="terms.html">利用規約</a>
+  </footer>
+
+</div>
 </body>
 </html>
