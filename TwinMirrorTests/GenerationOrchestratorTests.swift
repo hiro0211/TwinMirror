@@ -47,20 +47,20 @@ final class GenerationOrchestratorTests: XCTestCase {
     // MARK: - default chain composition (Gemini only)
 
     func test_defaultAttempts_usesGeminiOnly() {
-        let attempts = GenerationOrchestrator.defaultAttempts(geminiKey: "g")
+        let attempts = GenerationOrchestrator.defaultAttempts(workerURL: URL(string: "https://worker.example.com")!, authToken: "tok")
         XCTAssertTrue(attempts.allSatisfy { $0.generator is GeminiImageGenerator },
                       "本番チェーンはGeminiのみで構成される（OpenAIは削除済み）")
         XCTAssertGreaterThanOrEqual(attempts.count, 1)
     }
 
     func test_defaultAttempts_firstIsNanoBananaPhotoreal() {
-        let attempts = GenerationOrchestrator.defaultAttempts(geminiKey: "g")
+        let attempts = GenerationOrchestrator.defaultAttempts(workerURL: URL(string: "https://worker.example.com")!, authToken: "tok")
         XCTAssertEqual(attempts.first?.style, .photorealistic,
                        "1番目は Nano Banana 2 の photorealistic")
     }
 
     func test_defaultAttempts_lastIsIllustration() {
-        let attempts = GenerationOrchestrator.defaultAttempts(geminiKey: "g")
+        let attempts = GenerationOrchestrator.defaultAttempts(workerURL: URL(string: "https://worker.example.com")!, authToken: "tok")
         XCTAssertEqual(attempts.last?.style, .illustration,
                        "最後の砦は illustration スタイル")
     }

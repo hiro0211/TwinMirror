@@ -1,8 +1,10 @@
-// Copy this file to TwinMirror.xcconfig and fill in your keys.
-// TwinMirror.xcconfig is gitignored — never commit real keys.
+// Copy this file to TwinMirror.xcconfig and fill in your values.
+// TwinMirror.xcconfig is gitignored — never commit real values.
 //
-// Get your Gemini API key from: https://aistudio.google.com/apikey
-// Get your OpenAI API key from: https://platform.openai.com/api-keys (optional fallback)
+// 1) Deploy the Cloudflare Worker first (see cloudflare-worker/README.md)
+// 2) After `npx wrangler deploy`, copy the printed Worker URL to WORKER_URL below
+// 3) WORKER_AUTH_TOKEN must match the secret you set with `wrangler secret put WORKER_AUTH_TOKEN`
+//    (use `openssl rand -hex 32` to generate one if starting from scratch)
 
-GEMINI_API_KEY = REPLACE_WITH_YOUR_GEMINI_KEY
-OPENAI_API_KEY = REPLACE_WITH_YOUR_OPENAI_KEY_OR_EMPTY
+WORKER_URL = REPLACE_WITH_WORKER_URL_AFTER_DEPLOY
+WORKER_AUTH_TOKEN = REPLACE_WITH_TOKEN_FROM_cloudflare-worker_SECRETS_TO_SET.md

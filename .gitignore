@@ -1,6 +1,12 @@
 # API keys — never commit
 TwinMirror.xcconfig
 
+# Cloudflare Worker secrets/local artifacts
+cloudflare-worker/node_modules/
+cloudflare-worker/.wrangler/
+cloudflare-worker/.dev.vars
+cloudflare-worker/SECRETS_TO_SET.md
+
 # Xcode
 *.xcodeproj/
 xcuserdata/

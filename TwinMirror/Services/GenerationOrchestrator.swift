@@ -1,47 +1,38 @@
 import Foundation
 import UIKit
 
-/// 画像生成のオーケストレータ。Gemini Nano Banana を1枚生成で叩く。
-///
-/// フォールバックチェーン:
-///   1. Gemini 3.1 (Nano Banana 2) photorealistic
-///   2. Gemini 2.5 photorealistic
-///   3. Gemini 3.1 illustration（最後の砦）
 struct GenerationOrchestrator {
     struct Attempt {
         let generator: any ImageGenerator
         let style: GenerationStyle
     }
 
-    /// 1回の生成で要求する候補画像数。
-    /// 本番は **1枚固定**（プレミアム削除 & コスト最適化）。
     static let candidateCount = 1
 
     let attempts: [Attempt]
     let promptBuilder: PromptBuilder
 
-    /// Test seam: inject attempt list directly.
     init(attempts: [Attempt], promptBuilder: PromptBuilder = PromptBuilder()) {
         self.attempts = attempts
         self.promptBuilder = promptBuilder
     }
 
-    /// Production convenience: build default chain from API keys.
     init(
-        geminiKey: String,
+        workerURL: URL,
+        authToken: String,
         promptBuilder: PromptBuilder = PromptBuilder()
     ) {
         self.init(
-            attempts: Self.defaultAttempts(geminiKey: geminiKey),
+            attempts: Self.defaultAttempts(workerURL: workerURL, authToken: authToken),
             promptBuilder: promptBuilder
         )
     }
 
-    static func defaultAttempts(geminiKey: String) -> [Attempt] {
+    static func defaultAttempts(workerURL: URL, authToken: String) -> [Attempt] {
         [
-            Attempt(generator: GeminiImageGenerator(apiKey: geminiKey, model: .nanoBanana2), style: .photorealistic),
-            Attempt(generator: GeminiImageGenerator(apiKey: geminiKey, model: .stable25),    style: .photorealistic),
-            Attempt(generator: GeminiImageGenerator(apiKey: geminiKey, model: .nanoBanana2), style: .illustration),
+            Attempt(generator: GeminiImageGenerator(workerURL: workerURL, authToken: authToken, model: .nanoBanana2), style: .photorealistic),
+            Attempt(generator: GeminiImageGenerator(workerURL: workerURL, authToken: authToken, model: .stable25),    style: .photorealistic),
+            Attempt(generator: GeminiImageGenerator(workerURL: workerURL, authToken: authToken, model: .nanoBanana2), style: .illustration),
         ]
     }
 
@@ -70,7 +61,6 @@ struct GenerationOrchestrator {
         throw lastError ?? ImageGenerationError.allFallbacksExhausted
     }
 
-    /// 1枚運用のため通常は index 0。複数返ってきた場合に備えて jpeg サイズで雑に選ぶ。
     func pickBestIndex(from images: [UIImage]) -> Int {
         var bestIndex = 0
         var bestSize = 0

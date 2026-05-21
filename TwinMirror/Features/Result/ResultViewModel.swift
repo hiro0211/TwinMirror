@@ -31,7 +31,14 @@ final class ResultViewModel {
         self.gender = initialRequest.gender
         self.fatherImage = fatherImage
         self.motherImage = motherImage
-        self.orchestrator = GenerationOrchestrator(geminiKey: AppConfig.geminiAPIKey)
+        if let workerURL = AppConfig.workerURL {
+            self.orchestrator = GenerationOrchestrator(
+                workerURL: workerURL,
+                authToken: AppConfig.workerAuthToken
+            )
+        } else {
+            self.orchestrator = GenerationOrchestrator(attempts: [])
+        }
         self.saveService = saveService
     }
 

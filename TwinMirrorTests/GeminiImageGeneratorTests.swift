@@ -3,8 +3,10 @@ import XCTest
 
 final class GeminiImageGeneratorTests: XCTestCase {
 
-    func test_buildRequestBody_includesPromptAndTwoImages() throws {
-        let generator = GeminiImageGenerator(apiKey: "test", model: .nanoBanana2)
+    private let workerURL = URL(string: "https://worker.example.com")!
+
+    func test_buildRequestBody_includesModelPromptAndTwoImages() throws {
+        let generator = GeminiImageGenerator(workerURL: workerURL, authToken: "tok", model: .nanoBanana2)
         let body = try generator.buildRequestBody(
             prompt: "Test prompt",
             fatherJPEG: Data([0xFF, 0xD8, 0xFF]),
@@ -12,6 +14,8 @@ final class GeminiImageGeneratorTests: XCTestCase {
         )
 
         let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
+        XCTAssertEqual(json["model"] as? String, "gemini-3.1-flash-image-preview")
+
         let contents = try XCTUnwrap(json["contents"] as? [[String: Any]])
         let parts = try XCTUnwrap(contents.first?["parts"] as? [[String: Any]])
 
@@ -24,7 +28,7 @@ final class GeminiImageGeneratorTests: XCTestCase {
     }
 
     func test_buildRequestBody_includesSafetySettings() throws {
-        let generator = GeminiImageGenerator(apiKey: "test")
+        let generator = GeminiImageGenerator(workerURL: workerURL, authToken: "tok")
         let body = try generator.buildRequestBody(
             prompt: "p",
             fatherJPEG: Data([0x01]),
@@ -36,7 +40,6 @@ final class GeminiImageGeneratorTests: XCTestCase {
     }
 
     func test_parseResponse_extractsBase64Image() throws {
-        // 1x1 red PNG
         let onePixelPNG = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==")!
         let payload: [String: Any] = [
             "candidates": [[
@@ -103,8 +106,8 @@ final class GeminiImageGeneratorTests: XCTestCase {
         }
     }
 
-    func test_generate_missingAPIKey_throws() async {
-        let generator = GeminiImageGenerator(apiKey: "")
+    func test_generate_missingAuthToken_throws() async {
+        let generator = GeminiImageGenerator(workerURL: workerURL, authToken: "")
         let req = GenerationRequest(
             fatherImageData: Data([0x01]),
             motherImageData: Data([0x02]),

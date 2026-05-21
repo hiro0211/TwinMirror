@@ -7,18 +7,20 @@ struct GeminiImageGenerator: ImageGenerator {
         case stable25    = "gemini-2.5-flash-image"
     }
 
-    let apiKey: String
+    let workerURL: URL
+    let authToken: String
     let model: Model
     let session: URLSession
 
-    init(apiKey: String, model: Model = .nanoBanana2, session: URLSession = .shared) {
-        self.apiKey = apiKey
+    init(workerURL: URL, authToken: String, model: Model = .nanoBanana2, session: URLSession = .shared) {
+        self.workerURL = workerURL
+        self.authToken = authToken
         self.model = model
         self.session = session
     }
 
     func generate(request: GenerationRequest, prompt: String, count: Int) async throws -> [UIImage] {
-        guard !apiKey.isEmpty, apiKey != "REPLACE_WITH_YOUR_GEMINI_KEY" else {
+        guard !authToken.isEmpty else {
             throw ImageGenerationError.missingAPIKey
         }
 
@@ -38,6 +40,7 @@ struct GeminiImageGenerator: ImageGenerator {
 
     func buildRequestBody(prompt: String, fatherJPEG: Data, motherJPEG: Data) throws -> Data {
         let body: [String: Any] = [
+            "model": model.rawValue,
             "contents": [[
                 "parts": [
                     ["text": prompt],
@@ -65,11 +68,11 @@ struct GeminiImageGenerator: ImageGenerator {
     }
 
     private func singleRequest(request: GenerationRequest, prompt: String) async throws -> UIImage {
-        let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model.rawValue):generateContent")!
+        let url = workerURL.appendingPathComponent("generate")
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        urlRequest.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
+        urlRequest.setValue(authToken, forHTTPHeaderField: "X-Auth-Token")
         urlRequest.httpBody = try buildRequestBody(
             prompt: prompt,
             fatherJPEG: request.fatherImageData,
