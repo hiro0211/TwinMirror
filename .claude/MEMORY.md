@@ -511,3 +511,94 @@ xcconfig は `//` をコメント開始扱いするため、`https://...` を直
 - `@cloudflare/vitest-pool-workers` は採用せず、plain vitest + Node 環境で十分（fetch / Request / Response は Node 18+ 標準）。Workers 固有バインディング（KV, DO）を使い始めたら pool に乗り換える
 - LSP（SourceKit）が `UIKit` / `XCTest` を解決できない警告は依然出るが、xcodebuild では問題なし
 - 旧 `geminiAPIKey` プロパティは完全削除済み、`OPENAI_API_KEY` xcconfig 行も同様に既に未参照（過去メモ参照）
+
+## 2026-05-21
+
+### 作業内容
+- プレミアムモード（3枚生成: 50:50 / 父70:30 / 母70:30）を追加実装
+- 高速モード = 1枚（balanced のみ）、プレミアム = 3枚（balanced + fatherLeaning + motherLeaning）
+- フリーミアム設計: 非課金は premium 1回/日、fast 3回/日（独立カウンター）
+- Gemini はブレンド比の数値パラメータを公開していないため、プロンプト本文（自然言語）で表現。`PRIMARY facial template: Image A (FATHER)` 等のロール指定で 70:30 を誘導
+- 部分成功を許容: 3枚中1〜2枚成功時はその分だけ返す（全失敗時のみ throw）
+
+### 主要な設計判断
+- `ImageGenerator.generate(request:prompt:count:)` を `generate(request:prompt:)` に簡素化。並列化は Orchestrator が担う（責務分離）
+- `GenerationOrchestrator.generate` は `request.mode.blendRatios` ごとに独立したフォールバックチェーンを並列実行。プロンプトはタスク開始前に同期構築（PromptBuilder を非Sendable境界越しに送らない）
+- `GenerationResult.ratios: [BlendRatio]` を追加して images と並びを揃える（ResultView でバッジに使う）
+- `UsageLimiter` は fast / premium で完全別キー（`twinmirror.usage.premium.*`）。`isPremiumSubscriber: @Sendable () -> Bool` フックで IAP 加入時に上限を 1000 に切替できる
+
+### 検証結果
+- `xcodebuild build`: BUILD SUCCEEDED (iPhone 17 simulator)
+- `xcodebuild test`: TEST SUCCEEDED, 87 tests passed, 0 failures
+- 新規/拡張テスト: BlendRatioTests (9), PromptBuilderTests (+5), GenerationOrchestratorTests (+4), UsageLimiterTests (+6)
+
+### 次回やるべきこと
+- **Phase B（IAP）**: `SubscriptionManager` (StoreKit2) と `PaywallView` を新規実装し、`UsageLimiter` の `isPremiumSubscriber` に結線
+  - App Store Connect で月額/年額サブスク SKU 作成（`com.twinmirror.premium.monthly` など）
+  - `.storekit` Configuration ファイルを Xcode に追加してローカルテスト
+- **実機検証**: 同じ両親写真で premium 3 枚生成して、父寄り/母寄りが視覚的に判別できるか確認。プロンプト文言を強化（`STRONGLY emphasize FATHER`, `MOTHER must be only barely recognizable` 等）する余地あり
+- **Cloudflare Worker レート確認**: premium モードで3並列リクエストになるため、Worker 側の rate limit / timeout 設定を再点検
+
+### 発見した問題点・注意事項
+- **`UsageLimiter` テストで `@Sendable` 警告**: `now: { self.date(...) }` のキャプチャは `XCTestCase` が non-Sendable なので失敗する。`let fixedNow = date(...)` でローカル定数化して回避する必要あり
+- **SourceKit が依然 `UIKit` / `XCTest` を解決できないことが多い**: xcodebuild ビルドには影響なし。`xcodegen` 実行直後に Xcode を再起動すれば収まる
+- **GenerationResult の `ratios` パラメータはデフォルト `[]`**: 既存テスト互換のため。新規呼び出し（Orchestrator）は必ず明示的に渡す
+- Gemini は per-feature の数値ブレンドを実機検証していないため、`70:30` が実際にどれくらい区別できるかは現時点で未知
+
+### 変更したファイル（主要）
+
+#### 新規
+- `TwinMirror/Models/BlendRatio.swift` — BlendRatio / GenerationMode enum
+- `TwinMirror/Services/BlendPrompts.swift` — `{{BLEND_BLOCK}}` 用テンプレートローダー
+- `TwinMirror/Resources/Prompts/blend_block_balanced.txt`
+- `TwinMirror/Resources/Prompts/blend_block_father_leaning.txt`
+- `TwinMirror/Resources/Prompts/blend_block_mother_leaning.txt`
+- `TwinMirrorTests/BlendRatioTests.swift`
+
+#### 修正
+- `TwinMirror/Models/GenerationRequest.swift` — `mode` / `ratios` 追加
+- `TwinMirror/Resources/Prompts/child_realistic_v2.txt` — FEATURE INHERITANCE を `{{BLEND_BLOCK}}` 化
+- `TwinMirror/Resources/Prompts/child_illustration_v2.txt` — 同上
+- `TwinMirror/Services/PromptBuilder.swift` — `blendRatio` 引数
+- `TwinMirror/Services/ImageGenerator.swift` — single-image return に簡素化
+- `TwinMirror/Services/GeminiImageGenerator.swift` — count 引数削除
+- `TwinMirror/Services/GenerationOrchestrator.swift` — 全面書き換え（per-ratio パイプラインの並列実行 + 部分成功）
+- `TwinMirror/Services/UsageLimiter.swift` — premium カウンター + IAP フック
+- `TwinMirror/Features/Compose/ComposeViewModel.swift` — `mode` プロパティ
+- `TwinMirror/Features/Compose/ComposeView.swift` — `ModeCard` セクション + モード別残数バッジ + premium ペイウォール対応の handleGenerateTapped
+- `TwinMirror/Features/Result/ResultView.swift` — `BlendRatioBadge` / `ParentBar` overlay
+- `TwinMirrorTests/GenerationOrchestratorTests.swift` — 全面書き換え（fast / premium / partial / all-fail）
+- `TwinMirrorTests/GeminiImageGeneratorTests.swift` — シグネチャ変更追随
+- `TwinMirrorTests/PromptBuilderTests.swift` — blend ratio テスト追加
+- `TwinMirrorTests/UsageLimiterTests.swift` — premium カウンターテスト追加
+
+### 計画ファイル
+- `/Users/arimurahiroaki/.claude/plans/1-3-1-3-1-70-30-2-uiwo-users-arimurahir-woolly-cocoa.md`
+
+## 2026-05-21
+
+### 作業内容
+- ComposeView (子ども生成画面) と AIConsentSheet (AI処理確認シート) のコントラスト改善
+- 計画: `/Users/arimurahiroaki/.claude/plans/users-arimurahiroaki-downloads-img-4892-mutable-feather.md`
+- 基準: 性別選択チップ (`GlassChip`) のクリアな白ガラス / ピンクガラスのコントラスト
+
+### 変更内容
+- `ComposeView.swift` の body から `instructionsSection`（"使い方" カード）を削除
+- `instructionsSection` の定義ブロック（lines 150-161 相当）を全削除
+- `disclaimerSection` の `glassEffect` を `Theme.Colors.cream.opacity(0.85)` → `.white.opacity(0.4)` に変更し、性別チップ非選択状態と同じトーンに統一
+- `AIConsentSheet` 本体を `ZStack { Theme.Gradients.background.ignoresSafeArea(); ... }` で包み、`.presentationBackground(Theme.Colors.cream)` を追加してデフォルト sheet material の透けを排除
+- "キャンセル" ボタンの色を `Theme.Colors.textSecondary` → `Theme.Colors.textPrimary.opacity(0.7)` に強化（font も weight: .medium 追加）
+
+### 検証結果
+- `xcodebuild build` (iPhone 17 Pro / iOS 26.x simulator): **BUILD SUCCEEDED**
+- シミュレーター実機での目視確認は未実施（ユーザー側で確認予定）
+
+### 変更したファイル
+- `TwinMirror/Features/Compose/ComposeView.swift` (1ファイルのみ)
+
+### 次回やるべきこと
+- シミュレーター/実機で AIConsentSheet を開き、ピンクボタンと本文テキストのコントラストが性別チップと同等になっているか目視確認
+- "ご利用について" カードがオレンジ警告 + 白ガラス背景で読みやすくなっているか確認
+
+### 計画ファイル
+- `/Users/arimurahiroaki/.claude/plans/users-arimurahiroaki-downloads-img-4892-mutable-feather.md`

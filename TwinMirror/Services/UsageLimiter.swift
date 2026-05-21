@@ -4,18 +4,32 @@ import Foundation
 /// TestFlight 配布時に Gemini API のコストが青天井にならないよう、
 /// 端末ローカルで上限をかける。
 ///
+/// fast モードと premium モードはそれぞれ独立したカウンターを持つ。
+/// IAP サブスクリプション加入者は `isPremiumSubscriber` で premium 制限を実質
+/// 無効化できる（注入された判定クロージャで判定）。
+///
 /// 内部の UserDefaults は documented thread-safe であり、
 /// 他に可変状態を持たないため `@unchecked Sendable`。
 final class UsageLimiter: @unchecked Sendable {
-    /// 1日あたりの生成上限。
-    static let dailyLimit = 3
+    /// fast モードの1日あたり上限。
+    static let fastDailyLimit = 3
+    /// premium モードの非課金ユーザー向け1日あたり上限。
+    static let premiumDailyLimitFree = 1
+    /// IAP サブスクリプション加入者向けの premium 上限（実質無制限相当）。
+    static let premiumDailyLimitSubscribed = 1000
+
+    /// 旧 `dailyLimit` 互換シンボル（fast 上限と同義）。既存テスト用。
+    static var dailyLimit: Int { fastDailyLimit }
 
     private let defaults: UserDefaults
     private let now: @Sendable () -> Date
     private let calendar: Calendar
+    private let isPremiumSubscriber: @Sendable () -> Bool
 
-    private static let dateKey = "twinmirror.usage.date"
-    private static let countKey = "twinmirror.usage.count"
+    private static let fastDateKey = "twinmirror.usage.date"
+    private static let fastCountKey = "twinmirror.usage.count"
+    private static let premiumDateKey = "twinmirror.usage.premium.date"
+    private static let premiumCountKey = "twinmirror.usage.premium.count"
 
     init(
         defaults: UserDefaults = .standard,
@@ -24,34 +38,84 @@ final class UsageLimiter: @unchecked Sendable {
             var c = Calendar(identifier: .gregorian)
             c.timeZone = TimeZone(identifier: "Asia/Tokyo") ?? .current
             return c
-        }()
+        }(),
+        isPremiumSubscriber: @escaping @Sendable () -> Bool = { false }
     ) {
         self.defaults = defaults
         self.now = now
         self.calendar = calendar
+        self.isPremiumSubscriber = isPremiumSubscriber
     }
 
-    var remainingToday: Int {
-        max(0, Self.dailyLimit - currentCount())
+    // MARK: - Fast
+
+    var remainingFastToday: Int {
+        max(0, Self.fastDailyLimit - fastCount())
     }
 
-    var canGenerate: Bool {
-        remainingToday > 0
+    /// 旧 API 互換: fast の残量を返す。
+    var remainingToday: Int { remainingFastToday }
+
+    var canGenerateFast: Bool { remainingFastToday > 0 }
+
+    /// 旧 API 互換: fast 用カウンタが残っているか。
+    var canGenerate: Bool { canGenerateFast }
+
+    // MARK: - Premium
+
+    var premiumDailyLimit: Int {
+        isPremiumSubscriber() ? Self.premiumDailyLimitSubscribed : Self.premiumDailyLimitFree
     }
 
-    /// 1回消費を試みる。上限到達時は false を返す。
+    var remainingPremiumToday: Int {
+        max(0, premiumDailyLimit - premiumCount())
+    }
+
+    var canGeneratePremium: Bool { remainingPremiumToday > 0 }
+
+    // MARK: - Consumption
+
+    /// モード別に1回消費を試みる。上限到達時は false を返す。
+    @discardableResult
+    func tryConsume(mode: GenerationMode) -> Bool {
+        switch mode {
+        case .fast:    return tryConsumeFast()
+        case .premium: return tryConsumePremium()
+        }
+    }
+
+    /// 旧 API 互換: fast 消費。
     @discardableResult
     func tryConsume() -> Bool {
-        guard canGenerate else { return false }
-        let next = currentCount() + 1
-        defaults.set(todayKey(), forKey: Self.dateKey)
-        defaults.set(next, forKey: Self.countKey)
+        tryConsumeFast()
+    }
+
+    // MARK: - Internals
+
+    private func tryConsumeFast() -> Bool {
+        guard canGenerateFast else { return false }
+        let next = fastCount() + 1
+        defaults.set(todayKey(), forKey: Self.fastDateKey)
+        defaults.set(next, forKey: Self.fastCountKey)
         return true
     }
 
-    private func currentCount() -> Int {
-        guard defaults.string(forKey: Self.dateKey) == todayKey() else { return 0 }
-        return defaults.integer(forKey: Self.countKey)
+    private func tryConsumePremium() -> Bool {
+        guard canGeneratePremium else { return false }
+        let next = premiumCount() + 1
+        defaults.set(todayKey(), forKey: Self.premiumDateKey)
+        defaults.set(next, forKey: Self.premiumCountKey)
+        return true
+    }
+
+    private func fastCount() -> Int {
+        guard defaults.string(forKey: Self.fastDateKey) == todayKey() else { return 0 }
+        return defaults.integer(forKey: Self.fastCountKey)
+    }
+
+    private func premiumCount() -> Int {
+        guard defaults.string(forKey: Self.premiumDateKey) == todayKey() else { return 0 }
+        return defaults.integer(forKey: Self.premiumCountKey)
     }
 
     private func todayKey() -> String {

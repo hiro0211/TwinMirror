@@ -82,4 +82,61 @@ final class UsageLimiterTests: XCTestCase {
         _ = l.tryConsume()
         XCTAssertFalse(l.canGenerate)
     }
+
+    // MARK: - Premium counter (separate from fast)
+
+    func test_premium_initialFreeRemainingIs1() {
+        let l = limiter(now: date("2026-05-20 10:00"))
+        XCTAssertEqual(l.remainingPremiumToday, UsageLimiter.premiumDailyLimitFree)
+        XCTAssertTrue(l.canGeneratePremium)
+    }
+
+    func test_premium_consumeBeyondFreeLimit_fails() {
+        let l = limiter(now: date("2026-05-20 10:00"))
+        XCTAssertTrue(l.tryConsume(mode: .premium))
+        XCTAssertFalse(l.tryConsume(mode: .premium), "非課金ユーザーは1日1回まで")
+        XCTAssertEqual(l.remainingPremiumToday, 0)
+    }
+
+    func test_premium_independentFromFast() {
+        let l = limiter(now: date("2026-05-20 10:00"))
+        // fastを3回消費してもpremiumには影響しない
+        _ = l.tryConsume(mode: .fast)
+        _ = l.tryConsume(mode: .fast)
+        _ = l.tryConsume(mode: .fast)
+        XCTAssertEqual(l.remainingFastToday, 0)
+        XCTAssertEqual(l.remainingPremiumToday, UsageLimiter.premiumDailyLimitFree)
+        XCTAssertTrue(l.canGeneratePremium)
+    }
+
+    func test_fast_independentFromPremium() {
+        let l = limiter(now: date("2026-05-20 10:00"))
+        _ = l.tryConsume(mode: .premium)
+        XCTAssertEqual(l.remainingPremiumToday, 0)
+        XCTAssertEqual(l.remainingFastToday, UsageLimiter.fastDailyLimit)
+        XCTAssertTrue(l.canGenerateFast)
+    }
+
+    func test_premium_resetsOnNextDay() {
+        let l1 = limiter(now: date("2026-05-20 23:00"))
+        _ = l1.tryConsume(mode: .premium)
+        XCTAssertEqual(l1.remainingPremiumToday, 0)
+
+        let l2 = limiter(now: date("2026-05-21 00:01"))
+        XCTAssertEqual(l2.remainingPremiumToday, UsageLimiter.premiumDailyLimitFree)
+    }
+
+    func test_premium_subscriberHasMuchHigherLimit() {
+        let fixedNow = date("2026-05-20 10:00")
+        let l = UsageLimiter(
+            defaults: defaults,
+            now: { fixedNow },
+            isPremiumSubscriber: { true }
+        )
+        XCTAssertEqual(l.remainingPremiumToday, UsageLimiter.premiumDailyLimitSubscribed)
+        // 加入者は1日1回の制限を受けない
+        XCTAssertTrue(l.tryConsume(mode: .premium))
+        XCTAssertTrue(l.tryConsume(mode: .premium))
+        XCTAssertTrue(l.canGeneratePremium)
+    }
 }

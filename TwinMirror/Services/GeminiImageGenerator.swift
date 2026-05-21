@@ -19,23 +19,11 @@ struct GeminiImageGenerator: ImageGenerator {
         self.session = session
     }
 
-    func generate(request: GenerationRequest, prompt: String, count: Int) async throws -> [UIImage] {
+    func generate(request: GenerationRequest, prompt: String) async throws -> UIImage {
         guard !authToken.isEmpty else {
             throw ImageGenerationError.missingAPIKey
         }
-
-        return try await withThrowingTaskGroup(of: UIImage.self) { group in
-            for _ in 0..<count {
-                group.addTask {
-                    try await self.singleRequest(request: request, prompt: prompt)
-                }
-            }
-            var results: [UIImage] = []
-            for try await image in group {
-                results.append(image)
-            }
-            return results
-        }
+        return try await singleRequest(request: request, prompt: prompt)
     }
 
     func buildRequestBody(prompt: String, fatherJPEG: Data, motherJPEG: Data) throws -> Data {

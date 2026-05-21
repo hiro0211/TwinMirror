@@ -36,7 +36,8 @@ enum ImageGenerationError: Error, LocalizedError {
 }
 
 protocol ImageGenerator: Sendable {
-    /// Generates `count` candidate images for the given request and prompt.
-    /// Returns the actual images (not URLs) so the caller can pick a best one.
-    func generate(request: GenerationRequest, prompt: String, count: Int) async throws -> [UIImage]
+    /// Generates a single image for the given request and prompt.
+    /// Parallelism (e.g. multiple blend ratios in premium mode) is the
+    /// orchestrator's responsibility, not the generator's.
+    func generate(request: GenerationRequest, prompt: String) async throws -> UIImage
 }

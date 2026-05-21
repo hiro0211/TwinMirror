@@ -49,16 +49,25 @@ struct ResultView: View {
 
             TabView(selection: $selectedIndex) {
                 ForEach(Array(result.images.enumerated()), id: \.offset) { index, image in
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFit()
-                        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.large))
-                        .padding(Theme.Spacing.m)
-                        .tag(index)
+                    VStack(spacing: Theme.Spacing.s) {
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFit()
+                            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.large))
+                        if result.ratios.indices.contains(index), result.ratios.count > 1 {
+                            BlendRatioBadge(
+                                ratio: result.ratios[index],
+                                fatherImage: viewModel.fatherImage,
+                                motherImage: viewModel.motherImage
+                            )
+                        }
+                    }
+                    .padding(Theme.Spacing.m)
+                    .tag(index)
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: .always))
-            .frame(maxHeight: 480)
+            .frame(maxHeight: 560)
             .onAppear {
                 if !result.images.indices.contains(selectedIndex) {
                     selectedIndex = result.bestIndex
@@ -126,5 +135,67 @@ struct ResultView: View {
             .padding(.horizontal, Theme.Spacing.l)
         }
         .padding()
+    }
+}
+
+private struct BlendRatioBadge: View {
+    let ratio: BlendRatio
+    let fatherImage: UIImage
+    let motherImage: UIImage
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(ratio.displayLabel)
+                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .foregroundStyle(Theme.Colors.textPrimary)
+            ParentBar(
+                avatar: fatherImage,
+                label: "お父さん",
+                percent: ratio.fatherPercent,
+                barColor: Color(red: 0.55, green: 0.70, blue: 1.0)
+            )
+            ParentBar(
+                avatar: motherImage,
+                label: "お母さん",
+                percent: ratio.motherPercent,
+                barColor: Color(red: 1.0, green: 0.55, blue: 0.75)
+            )
+        }
+        .padding(.horizontal, Theme.Spacing.m)
+        .padding(.vertical, Theme.Spacing.s)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .glassEffect(.regular.tint(.white.opacity(0.7)), in: .rect(cornerRadius: Theme.Radius.medium))
+    }
+}
+
+private struct ParentBar: View {
+    let avatar: UIImage
+    let label: String
+    let percent: Int
+    let barColor: Color
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(uiImage: avatar)
+                .resizable()
+                .scaledToFill()
+                .frame(width: 22, height: 22)
+                .clipShape(Circle())
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Color.black.opacity(0.08))
+                    Capsule()
+                        .fill(barColor)
+                        .frame(width: geo.size.width * CGFloat(percent) / 100)
+                }
+            }
+            .frame(height: 6)
+            Text("\(percent)")
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .foregroundStyle(Theme.Colors.textPrimary)
+                .frame(width: 28, alignment: .trailing)
+        }
+        .accessibilityLabel("\(label) \(percent)パーセント")
     }
 }

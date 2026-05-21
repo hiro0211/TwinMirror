@@ -114,7 +114,7 @@ final class GeminiImageGeneratorTests: XCTestCase {
             gender: .unspecified
         )
         do {
-            _ = try await generator.generate(request: req, prompt: "p", count: 1)
+            _ = try await generator.generate(request: req, prompt: "p")
             XCTFail("Should have thrown")
         } catch {
             if case ImageGenerationError.missingAPIKey = error {

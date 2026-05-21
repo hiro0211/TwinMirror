@@ -11,7 +11,7 @@ struct PromptBuilder {
         self.bundle = bundle
     }
 
-    func build(style: GenerationStyle, gender: ChildGender, age: ChildAge) throws -> String {
+    func build(style: GenerationStyle, gender: ChildGender, age: ChildAge, blendRatio: BlendRatio = .balanced) throws -> String {
         let templateName: String
         switch style {
         case .photorealistic: templateName = "child_realistic_v2"
@@ -23,8 +23,11 @@ struct PromptBuilder {
             throw PromptBuilderError.templateNotFound(name: templateName)
         }
 
+        let blendBlock = try BlendPrompts.block(for: blendRatio, bundle: bundle)
+
         return template
             .replacingOccurrences(of: "{{GENDER}}", with: gender.promptValue)
             .replacingOccurrences(of: "{{AGE_BLOCK}}", with: ChildAgePrompts.block(for: age))
+            .replacingOccurrences(of: "{{BLEND_BLOCK}}", with: blendBlock)
     }
 }

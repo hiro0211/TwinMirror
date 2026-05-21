@@ -8,14 +8,10 @@ ROLE OF EACH REFERENCE IMAGE:
 - Image A = facial reference of the FATHER (adult, 18+).
 - Image B = facial reference of the MOTHER (adult, 18+).
 
-FEATURE INHERITANCE (blend, do not copy adults' adult features):
-- Eye shape and eye color: a natural blend of A and B.
-- Nose shape: dominant features from one parent, subtle from the other.
-- Mouth and lips: blended.
-- Skin tone: a midpoint between A and B (slightly lighter, soft).
-- Hair (if visible): color and texture blended from A and B,
-  styled in an age-appropriate way.
-- Overall face shape: harmonious blend, age-appropriate proportions.
+{{BLEND_BLOCK}}
+
+(Do not copy adults' adult features onto the child — translate them into
+age-appropriate forms per the AGE block below.)
 
 IDENTITY ANCHOR:
 - Do NOT change the underlying face structure inherited from A and B.

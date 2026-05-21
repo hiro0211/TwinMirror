@@ -65,6 +65,54 @@ final class PromptBuilderTests: XCTestCase {
         }
     }
 
+    // MARK: - Blend ratio substitution
+
+    func test_build_balancedBlend_substitutesBlendBlock() throws {
+        let prompt = try makeBuilder().build(
+            style: .photorealistic, gender: .female, age: .default, blendRatio: .balanced
+        )
+        XCTAssertFalse(prompt.contains("{{BLEND_BLOCK}}"))
+        XCTAssertTrue(prompt.contains("BALANCED"), "balanced template should include BALANCED keyword")
+    }
+
+    func test_build_fatherLeaning_emphasizesFather() throws {
+        let prompt = try makeBuilder().build(
+            style: .photorealistic, gender: .female, age: .default, blendRatio: .fatherLeaning
+        )
+        XCTAssertFalse(prompt.contains("{{BLEND_BLOCK}}"))
+        XCTAssertTrue(prompt.contains("FATHER-LEANING"))
+        XCTAssertTrue(prompt.contains("Image A (FATHER)"))
+        XCTAssertTrue(prompt.contains("70%"))
+    }
+
+    func test_build_motherLeaning_emphasizesMother() throws {
+        let prompt = try makeBuilder().build(
+            style: .photorealistic, gender: .female, age: .default, blendRatio: .motherLeaning
+        )
+        XCTAssertFalse(prompt.contains("{{BLEND_BLOCK}}"))
+        XCTAssertTrue(prompt.contains("MOTHER-LEANING"))
+        XCTAssertTrue(prompt.contains("Image B (MOTHER)"))
+        XCTAssertTrue(prompt.contains("70%"))
+    }
+
+    func test_build_threeRatios_produceDifferentPrompts() throws {
+        let builder = makeBuilder()
+        let balanced = try builder.build(style: .photorealistic, gender: .female, age: .default, blendRatio: .balanced)
+        let father   = try builder.build(style: .photorealistic, gender: .female, age: .default, blendRatio: .fatherLeaning)
+        let mother   = try builder.build(style: .photorealistic, gender: .female, age: .default, blendRatio: .motherLeaning)
+        XCTAssertNotEqual(balanced, father)
+        XCTAssertNotEqual(balanced, mother)
+        XCTAssertNotEqual(father, mother)
+    }
+
+    func test_build_illustration_alsoSubstitutesBlendBlock() throws {
+        let prompt = try makeBuilder().build(
+            style: .illustration, gender: .female, age: .default, blendRatio: .fatherLeaning
+        )
+        XCTAssertFalse(prompt.contains("{{BLEND_BLOCK}}"))
+        XCTAssertTrue(prompt.contains("FATHER-LEANING"))
+    }
+
     private func makeBuilder() -> PromptBuilder {
         PromptBuilder(bundle: .main)
     }

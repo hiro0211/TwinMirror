@@ -1,0 +1,9 @@
+FEATURE INHERITANCE (BALANCED 50:50 blend of Image A FATHER and Image B MOTHER):
+- Eye shape and eye color: a natural blend of Image A (FATHER) and Image B (MOTHER).
+- Nose shape: dominant features from one parent, subtle from the other.
+- Mouth and lips: blended.
+- Skin tone: a midpoint between A and B (slightly lighter, soft).
+- Hair (if visible): color and texture blended from A and B,
+  styled in an age-appropriate way.
+- Overall face shape: harmonious blend, age-appropriate proportions.
+- Neither parent's features should dominate — the child should look equally like both.

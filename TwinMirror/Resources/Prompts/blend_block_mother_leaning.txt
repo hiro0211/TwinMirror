@@ -1,0 +1,15 @@
+FEATURE INHERITANCE (MOTHER-LEANING ~70% Mother / ~30% Father):
+CRITICAL: PRIMARY facial template = Image B (MOTHER). SECONDARY softening influence = Image A (FATHER).
+The child must visibly resemble the MOTHER significantly more than the FATHER.
+A viewer should immediately recognize "this child looks like the mother".
+
+- Overall face shape and jawline: predominantly inherited from Image B (MOTHER);
+  only subtle definition from Image A (FATHER).
+- Eye shape: clearly from MOTHER (Image B); eye color may take a slight hint from FATHER.
+- Nose shape: clearly inherited from MOTHER (Image B).
+- Mouth and lips: shape primarily from MOTHER (Image B), with subtle definition from FATHER.
+- Skin tone: lean toward MOTHER's tone, slightly adjusted, age-appropriate.
+- Hair color and texture (if visible): primarily from MOTHER (Image B), age-appropriate styling.
+- Eyebrows and forehead: distinctly from MOTHER (Image B).
+- The FATHER's influence should appear mainly in subtle facial definition,
+  NOT in the underlying bone structure or facial silhouette.

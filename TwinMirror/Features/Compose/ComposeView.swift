@@ -24,7 +24,7 @@ struct ComposeView: View {
                     photoCardsSection
                     ageSection
                     genderSection
-                    instructionsSection
+                    modeSection
                     disclaimerSection
                     usageBadge
                     generateButton
@@ -52,7 +52,11 @@ struct ComposeView: View {
         .alert("本日の生成上限に達しました", isPresented: $showUsageLimitAlert) {
             Button("OK", role: .cancel) {}
         } message: {
-            Text("コスト管理のため、1日あたり \(UsageLimiter.dailyLimit) 回までご利用いただけます。明日また使ってみてください。")
+            if viewModel.mode == .premium {
+                Text("プレミアムモードは1日あたり \(UsageLimiter.premiumDailyLimitFree) 回までご利用いただけます。高速モードでお試しいただくか、明日また使ってみてください。")
+            } else {
+                Text("コスト管理のため、高速モードは1日あたり \(UsageLimiter.fastDailyLimit) 回までご利用いただけます。明日また使ってみてください。")
+            }
         }
         .sheet(isPresented: $showAIConsentSheet) {
             AIConsentSheet(
@@ -142,19 +146,6 @@ struct ComposeView: View {
         }
     }
 
-    private var instructionsSection: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-            Label("使い方", systemImage: "book.fill")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(Theme.Colors.textPrimary)
-            BulletText("1人ずつ別の写真を選んでください")
-            BulletText("目・鼻・口がはっきり見える写真")
-            BulletText("正面を向いた顔の写真")
-        }
-        .padding(Theme.Spacing.m)
-        .glassEffect(.regular.tint(.white.opacity(0.7)), in: .rect(cornerRadius: Theme.Radius.medium))
-    }
-
     private var disclaimerSection: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
             Label("ご利用について", systemImage: "exclamationmark.triangle.fill")
@@ -165,14 +156,50 @@ struct ComposeView: View {
             BulletText("画像は生成のためにGoogle Geminiに送信されます")
         }
         .padding(Theme.Spacing.m)
-        .glassEffect(.regular.tint(Theme.Colors.cream.opacity(0.85)), in: .rect(cornerRadius: Theme.Radius.medium))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.white, in: .rect(cornerRadius: Theme.Radius.medium))
+        .shadow(color: .black.opacity(0.06), radius: 10, y: 2)
+    }
+
+    private var modeSection: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.s) {
+            Text("生成モード")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(Theme.Colors.textPrimary)
+            HStack(spacing: Theme.Spacing.s) {
+                ModeCard(
+                    title: "高速",
+                    subtitle: "1枚生成",
+                    iconName: "bolt.fill",
+                    isSelected: viewModel.mode == .fast,
+                    badge: "\(usageLimiter.remainingFastToday) / \(UsageLimiter.fastDailyLimit)",
+                    action: { viewModel.mode = .fast }
+                )
+                ModeCard(
+                    title: "プレミアム",
+                    subtitle: "3枚生成 ✦",
+                    iconName: "sparkles",
+                    isSelected: viewModel.mode == .premium,
+                    badge: "\(usageLimiter.remainingPremiumToday) / \(UsageLimiter.premiumDailyLimitFree)",
+                    action: { viewModel.mode = .premium }
+                )
+            }
+            if viewModel.mode == .premium {
+                Text("両親半々・お父さん似(70%)・お母さん似(70%) の3枚を同時に生成します")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.Colors.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
     }
 
     private var usageBadge: some View {
-        HStack(spacing: 6) {
+        let remaining = viewModel.mode == .premium ? usageLimiter.remainingPremiumToday : usageLimiter.remainingFastToday
+        let limit = viewModel.mode == .premium ? UsageLimiter.premiumDailyLimitFree : UsageLimiter.fastDailyLimit
+        return HStack(spacing: 6) {
             Image(systemName: "gauge.medium")
                 .font(.system(size: 12, weight: .semibold))
-            Text("本日の残り生成回数: \(usageLimiter.remainingToday) / \(UsageLimiter.dailyLimit)")
+            Text("本日の残り (\(viewModel.mode == .premium ? "プレミアム" : "高速")): \(remaining) / \(limit)")
                 .font(.system(size: 12, weight: .medium))
         }
         .foregroundStyle(Theme.Colors.textSecondary)
@@ -193,7 +220,8 @@ struct ComposeView: View {
     }
 
     private func handleGenerateTapped() {
-        guard usageLimiter.canGenerate else {
+        let canForMode = viewModel.mode == .premium ? usageLimiter.canGeneratePremium : usageLimiter.canGenerateFast
+        guard canForMode else {
             showUsageLimitAlert = true
             return
         }
@@ -205,7 +233,7 @@ struct ComposeView: View {
     }
 
     private func proceedToGenerate() {
-        guard usageLimiter.tryConsume() else {
+        guard usageLimiter.tryConsume(mode: viewModel.mode) else {
             showUsageLimitAlert = true
             return
         }
@@ -284,6 +312,61 @@ private struct ParentPhotoCard: View {
     }
 }
 
+private struct ModeCard: View {
+    let title: String
+    let subtitle: String
+    let iconName: String
+    let isSelected: Bool
+    let badge: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                HStack {
+                    Image(systemName: iconName)
+                        .font(.system(size: 16, weight: .semibold))
+                    Text(title)
+                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                    Spacer()
+                    if isSelected {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 18))
+                            .foregroundStyle(.white)
+                    }
+                }
+                Text(subtitle)
+                    .font(.system(size: 12))
+                    .foregroundStyle(isSelected ? Color.white.opacity(0.9) : Theme.Colors.textSecondary)
+                HStack(spacing: 4) {
+                    Image(systemName: "gauge.medium")
+                        .font(.system(size: 10))
+                    Text("残り \(badge)")
+                        .font(.system(size: 10, weight: .medium))
+                }
+                .foregroundStyle(isSelected ? Color.white.opacity(0.9) : Theme.Colors.textSecondary)
+                .padding(.top, 2)
+            }
+            .padding(Theme.Spacing.m)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .foregroundStyle(isSelected ? .white : Theme.Colors.textPrimary)
+            .background(
+                (isSelected ? Theme.Colors.primary : Color.white),
+                in: .rect(cornerRadius: Theme.Radius.medium)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.Radius.medium)
+                    .strokeBorder(
+                        isSelected ? Color.clear : Theme.Colors.primary.opacity(0.25),
+                        lineWidth: 1.5
+                    )
+            )
+            .shadow(color: .black.opacity(isSelected ? 0.10 : 0.06), radius: 10, y: 2)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 private struct BulletText: View {
     let text: String
     init(_ text: String) { self.text = text }
@@ -304,47 +387,52 @@ private struct AIConsentSheet: View {
     let onDecline: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.l) {
-            HStack {
-                Image(systemName: "shield.lefthalf.filled")
-                    .font(.system(size: 28))
-                    .foregroundStyle(Theme.Colors.accent)
-                Text("AI処理についてのご確認")
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
-                    .foregroundStyle(Theme.Colors.textPrimary)
-            }
-            .padding(.top, Theme.Spacing.l)
+        ZStack {
+            Theme.Gradients.background.ignoresSafeArea()
 
-            VStack(alignment: .leading, spacing: Theme.Spacing.s) {
-                Text("子ども画像の生成にあたり、選択された2枚の写真は次の処理を行います。")
-                    .font(.system(size: 14))
-                    .foregroundStyle(Theme.Colors.textPrimary)
-
-                BulletText("Google LLC の画像生成API（Gemini）に送信されます")
-                BulletText("生成リクエストにのみ使用され、当アプリの開発者サーバーには保存されません")
-                BulletText("18歳未満の方の写真は使用しないでください")
-                BulletText("詳細はプライバシーポリシーをご確認ください")
-            }
-
-            Link("プライバシーポリシーを開く", destination: AppConfig.privacyURL)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(Theme.Colors.accent)
-
-            Spacer()
-
-            VStack(spacing: Theme.Spacing.s) {
-                GlassButton(isProminent: true, action: onAccept) {
-                    Text("同意して続ける")
+            VStack(alignment: .leading, spacing: Theme.Spacing.l) {
+                HStack {
+                    Image(systemName: "shield.lefthalf.filled")
+                        .font(.system(size: 28))
+                        .foregroundStyle(Theme.Colors.accent)
+                    Text("AI処理についてのご確認")
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .foregroundStyle(Theme.Colors.textPrimary)
                 }
-                Button("キャンセル", action: onDecline)
-                    .font(.system(size: 14))
-                    .foregroundStyle(Theme.Colors.textSecondary)
+                .padding(.top, Theme.Spacing.l)
+
+                VStack(alignment: .leading, spacing: Theme.Spacing.s) {
+                    Text("子ども画像の生成にあたり、選択された2枚の写真は次の処理を行います。")
+                        .font(.system(size: 14))
+                        .foregroundStyle(Theme.Colors.textPrimary)
+
+                    BulletText("Google LLC の画像生成API（Gemini）に送信されます")
+                    BulletText("生成リクエストにのみ使用され、当アプリの開発者サーバーには保存されません")
+                    BulletText("18歳未満の方の写真は使用しないでください")
+                    BulletText("詳細はプライバシーポリシーをご確認ください")
+                }
+
+                Link("プライバシーポリシーを開く", destination: AppConfig.privacyURL)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.accent)
+
+                Spacer()
+
+                VStack(spacing: Theme.Spacing.s) {
+                    GlassButton(isProminent: true, action: onAccept) {
+                        Text("同意して続ける")
+                    }
+                    Button("キャンセル", action: onDecline)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(Theme.Colors.textPrimary.opacity(0.7))
+                }
+                .padding(.bottom, Theme.Spacing.l)
             }
-            .padding(.bottom, Theme.Spacing.l)
+            .padding(.horizontal, Theme.Spacing.l)
         }
-        .padding(.horizontal, Theme.Spacing.l)
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
+        .presentationBackground(Theme.Colors.cream)
     }
 }
 

@@ -15,11 +15,11 @@ ARTISTIC STYLE:
 - Clearly NOT a photograph — explicitly illustrative and stylized.
 - Inspired by children's storybook illustration aesthetics.
 
-FEATURE INHERITANCE (blend artistically):
-- Eye shape and color: a gentle blend of A and B, illustrated.
-- Hair color and texture (if visible): blended, age-appropriate.
-- Skin tone: a midpoint, painted softly.
-- Overall expression: peaceful, contemplative.
+{{BLEND_BLOCK}}
+
+(Render artistically — the feature inheritance described above should be
+expressed through painterly brushstrokes and soft watercolor textures, not
+photorealistic detail.)
 
 IDENTITY ANCHOR:
 - Do NOT change the underlying face structure inherited from A and B.

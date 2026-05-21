@@ -69,17 +69,20 @@ struct GenerationRequest: Sendable {
     let motherImageData: Data
     let gender: ChildGender
     let age: ChildAge
+    let mode: GenerationMode
 
     init(
         fatherImageData: Data,
         motherImageData: Data,
         gender: ChildGender,
-        age: ChildAge = .default
+        age: ChildAge = .default,
+        mode: GenerationMode = .fast
     ) {
         self.fatherImageData = fatherImageData
         self.motherImageData = motherImageData
         self.gender = gender
         self.age = age
+        self.mode = mode
     }
 }
 
@@ -87,6 +90,14 @@ struct GenerationResult: Sendable {
     let images: [UIImage]
     let bestIndex: Int
     let usedStyle: GenerationStyle
+    let ratios: [BlendRatio]
+
+    init(images: [UIImage], bestIndex: Int, usedStyle: GenerationStyle, ratios: [BlendRatio] = []) {
+        self.images = images
+        self.bestIndex = bestIndex
+        self.usedStyle = usedStyle
+        self.ratios = ratios
+    }
 
     var bestImage: UIImage {
         images[bestIndex]
