@@ -29,6 +29,11 @@ final class ComposeViewModel {
 
     private let faceService = FaceDetectionService()
     private let preprocessor = ImagePreprocessor()
+    private let analytics: AnalyticsTracking
+
+    init(analytics: AnalyticsTracking = DefaultAnalytics.shared) {
+        self.analytics = analytics
+    }
 
     var canGenerate: Bool {
         fatherImage != nil && motherImage != nil && fatherFace != nil && motherFace != nil
@@ -38,6 +43,7 @@ final class ComposeViewModel {
         isProcessingFace = true
         errorMessage = nil
         defer { isProcessingFace = false }
+        let slotName: String = (slot == .father) ? "father" : "mother"
         do {
             let face = try await faceService.detectLargestFace(in: image)
             switch slot {
@@ -48,12 +54,14 @@ final class ComposeViewModel {
                 motherImage = image
                 motherFace = face
             }
+            analytics.track(.composeImageSet(slot: slotName, faceDetected: true))
         } catch {
             errorMessage = error.localizedDescription
             switch slot {
             case .father: fatherImage = nil; fatherFace = nil
             case .mother: motherImage = nil; motherFace = nil
             }
+            analytics.track(.composeImageSet(slot: slotName, faceDetected: false))
         }
     }
 

@@ -18,6 +18,10 @@ configs:
 configFiles:
   Debug: TwinMirror.xcconfig
   Release: TwinMirror.xcconfig
+packages:
+  Firebase:
+    url: https://github.com/firebase/firebase-ios-sdk.git
+    from: 12.0.0
 targets:
   TwinMirror:
     type: application
@@ -26,6 +30,11 @@ targets:
       - path: TwinMirror
     resources:
       - path: TwinMirror/Resources
+    dependencies:
+      - package: Firebase
+        product: FirebaseAnalytics
+      - package: Firebase
+        product: FirebaseCore
     info:
       path: TwinMirror/Info.plist
       properties:
@@ -52,6 +61,7 @@ targets:
         INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        OTHER_LDFLAGS: "$(inherited) -ObjC"
   TwinMirrorTests:
     type: bundle.unit-test
     platform: iOS
@@ -78,5 +88,7 @@ schemes:
         - TwinMirror
     run:
       config: Debug
+      commandLineArguments:
+        "-FIRDebugEnabled": true
     archive:
       config: Release

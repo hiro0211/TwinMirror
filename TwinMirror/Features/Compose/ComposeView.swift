@@ -2,7 +2,7 @@ import SwiftUI
 import PhotosUI
 
 struct ComposeView: View {
-    @State private var viewModel = ComposeViewModel()
+    @State private var viewModel: ComposeViewModel
     @State private var fatherPickerItem: PhotosPickerItem?
     @State private var motherPickerItem: PhotosPickerItem?
     @State private var navigateToResult = false
@@ -13,6 +13,12 @@ struct ComposeView: View {
     @AppStorage("twinmirror.consent.ai") private var hasConsentedToAI = false
 
     private let usageLimiter = UsageLimiter.shared
+    private let analytics: AnalyticsTracking
+
+    init(analytics: AnalyticsTracking = DefaultAnalytics.shared) {
+        self.analytics = analytics
+        _viewModel = State(initialValue: ComposeViewModel(analytics: analytics))
+    }
 
     var body: some View {
         ZStack {
@@ -41,6 +47,7 @@ struct ComposeView: View {
         }
         .navigationTitle("子どもを生成")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear { analytics.track(.composeOpened) }
         .alert("エラー", isPresented: Binding(
             get: { viewModel.errorMessage != nil },
             set: { if !$0 { viewModel.errorMessage = nil } }
@@ -220,8 +227,14 @@ struct ComposeView: View {
     }
 
     private func handleGenerateTapped() {
+        analytics.track(.composeGenerateTapped(
+            gender: viewModel.gender.rawValue,
+            age: viewModel.age.years,
+            mode: viewModel.mode.rawValue
+        ))
         let canForMode = viewModel.mode == .premium ? usageLimiter.canGeneratePremium : usageLimiter.canGenerateFast
         guard canForMode else {
+            analytics.track(.usageLimitHit(mode: viewModel.mode.rawValue))
             showUsageLimitAlert = true
             return
         }
@@ -234,6 +247,7 @@ struct ComposeView: View {
 
     private func proceedToGenerate() {
         guard usageLimiter.tryConsume(mode: viewModel.mode) else {
+            analytics.track(.usageLimitHit(mode: viewModel.mode.rawValue))
             showUsageLimitAlert = true
             return
         }

@@ -1,5 +1,6 @@
 # API keys — never commit
 TwinMirror.xcconfig
+TwinMirror/Resources/GoogleService-Info.plist
 
 # Cloudflare Worker secrets/local artifacts
 cloudflare-worker/node_modules/

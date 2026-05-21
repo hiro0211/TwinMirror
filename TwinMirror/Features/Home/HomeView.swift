@@ -2,6 +2,11 @@ import SwiftUI
 
 struct HomeView: View {
     @State private var isComposeShown = false
+    private let analytics: AnalyticsTracking
+
+    init(analytics: AnalyticsTracking = DefaultAnalytics.shared) {
+        self.analytics = analytics
+    }
 
     var body: some View {
         NavigationStack {
@@ -53,6 +58,7 @@ struct HomeView: View {
                 ComposeView()
             }
         }
+        .onAppear { analytics.track(.homeViewed) }
     }
 }
 

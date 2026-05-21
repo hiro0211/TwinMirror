@@ -602,3 +602,43 @@ xcconfig は `//` をコメント開始扱いするため、`https://...` を直
 
 ### 計画ファイル
 - `/Users/arimurahiroaki/.claude/plans/users-arimurahiroaki-downloads-img-4892-mutable-feather.md`
+
+## 2026-05-21
+
+### 作業内容
+Firebase Analytics 連携を新規導入。
+- Firebase Console で `TwinMirror` プロジェクト作成 (project ID: `twinmirror-981c0`, GA 地域: 日本)
+- iOS アプリ登録 (bundle: `app.twinmirror.ios`, App Store ID: `6771413156`)
+- `GoogleService-Info.plist` を `TwinMirror/Resources/` に配置 (`.gitignore` で除外)
+- `project.yml` に Firebase SPM 依存追加 (`from: 12.0.0`、`FirebaseAnalytics` + `FirebaseCore`、`OTHER_LDFLAGS: -ObjC`)
+- `Services/AnalyticsService.swift` 新規追加 (`AnalyticsTracking` プロトコル + `AnalyticsEvent` enum + `FirebaseAnalyticsService` + `NoopAnalyticsService`)
+- `TwinMirrorApp.swift` で `FirebaseApp.configure()` 呼び出し
+- ViewModels (`ComposeViewModel`/`ResultViewModel`) と Views (`HomeView`/`ComposeView`) に AnalyticsTracking を DI で注入
+- イベント: home_viewed, compose_opened, compose_image_set, compose_generate_tapped, generation_started/succeeded/failed, result_regenerated, result_saved, result_save_failed, usage_limit_hit
+- TwinMirrorTests に `AnalyticsServiceTests.swift` 追加 (8テスト)
+- `xcodegen generate` 後、94テスト全合格
+
+### 注意事項
+- `GoogleService-Info.plist` はリポジトリに含めない方針 (`.gitignore` 済)。新規環境では Firebase Console から再ダウンロードして `TwinMirror/Resources/` に配置する必要あり
+- Firebase SDK は `12.13.0` で resolve された (`from: 12.0.0` の up-to-next-major)
+- DebugView を見るには Scheme → Run → Arguments に `-FIRDebugEnabled` を追加 (TestFlight 配布前に外す)
+
+### 次回やるべきこと
+- 実機/Simulator で DebugView にイベントが到達するか確認
+- README とプライバシーポリシー (`docs/privacy.html`) に Firebase Analytics 利用の記載追加
+- ATT (App Tracking Transparency) 方針の整理 (IDFA 非利用なら不要だが文書化する)
+
+### 変更したファイル
+- `project.yml` (Firebase package + linker flag)
+- `TwinMirror/App/TwinMirrorApp.swift` (FirebaseApp.configure)
+- `TwinMirror/Services/AnalyticsService.swift` (新規)
+- `TwinMirror/Features/Home/HomeView.swift`
+- `TwinMirror/Features/Compose/ComposeView.swift`
+- `TwinMirror/Features/Compose/ComposeViewModel.swift`
+- `TwinMirror/Features/Result/ResultViewModel.swift`
+- `TwinMirror/Resources/GoogleService-Info.plist` (新規・gitignore)
+- `TwinMirrorTests/AnalyticsServiceTests.swift` (新規)
+- `.gitignore` (plist を除外)
+
+### 計画ファイル
+- `/Users/arimurahiroaki/.claude/plans/firebase-claude-in-chrome-firebas-analys-velvet-puzzle.md`
