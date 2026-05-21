@@ -642,3 +642,23 @@ Firebase Analytics 連携を新規導入。
 
 ### 計画ファイル
 - `/Users/arimurahiroaki/.claude/plans/firebase-claude-in-chrome-firebas-analys-velvet-puzzle.md`
+
+
+## 2026-05-21 アーキテクチャ図ドキュメント追加
+
+### 作業内容
+- `docs/architecture.md` を新規作成
+- Mermaid.js で 5 種類のアーキテクチャ図を記述：
+  1. システム全体図（iOS ↔ Cloudflare Worker ↔ Gemini / Firebase / GitHub Pages）
+  2. iOS アプリ内部レイヤー（UI / ViewModel / Models / Services）
+  3. 画像生成パイプライン シーケンス図（並列ブレンド比 + フォールバックチェーン）
+  4. Cloudflare Worker リクエストフロー（認証・モデル allowlist・サイズ検証）
+  5. デプロイ・ビルド構成（xcodegen / Wrangler / Worker Secrets）
+- 末尾に技術スタック早見表を追加
+
+### 変更ファイル
+- `docs/architecture.md` (新規)
+
+### 次回やるべきこと（任意）
+- README.md からの `docs/architecture.md` への内部リンク追加
+- 図に StoreKit 2 / IAP 周りが正式に組み込まれたタイミングで該当セクション更新
