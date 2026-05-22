@@ -52,6 +52,38 @@ final class AnalyticsEventNameTests: XCTestCase {
         XCTAssertEqual(AnalyticsEvent.reviewPromptShown.name, "review_prompt_shown")
         XCTAssertEqual(AnalyticsEvent.reviewPromptAnswered(satisfied: true).name, "review_prompt_answered")
         XCTAssertEqual(AnalyticsEvent.reviewPromptCtaTapped(action: "open_app_store").name, "review_prompt_cta_tapped")
+        XCTAssertEqual(AnalyticsEvent.onboardingSurveyShown.name, "onboarding_survey_shown")
+        XCTAssertEqual(
+            AnalyticsEvent.onboardingSurveyQuestionAnswered(step: 1, key: "age_bracket", value: "under_25").name,
+            "onboarding_survey_question_answered"
+        )
+        XCTAssertEqual(
+            AnalyticsEvent.onboardingSurveyCompleted(ageBracket: "25_34", source: "social", useCase: "curiosity").name,
+            "onboarding_survey_completed"
+        )
+        XCTAssertEqual(AnalyticsEvent.onboardingSurveySkipped(atStep: 2).name, "onboarding_survey_skipped")
+    }
+
+    func test_onboardingSurveyQuestionAnswered_parameters() {
+        let event = AnalyticsEvent.onboardingSurveyQuestionAnswered(step: 2, key: "source", value: "word_of_mouth")
+        XCTAssertEqual(event.parameters["step"] as? Int, 2)
+        XCTAssertEqual(event.parameters["key"] as? String, "source")
+        XCTAssertEqual(event.parameters["value"] as? String, "word_of_mouth")
+    }
+
+    func test_onboardingSurveyCompleted_parameters() {
+        let event = AnalyticsEvent.onboardingSurveyCompleted(
+            ageBracket: "25_34",
+            source: "social",
+            useCase: "imagine_with_partner"
+        )
+        XCTAssertEqual(event.parameters["age_bracket"] as? String, "25_34")
+        XCTAssertEqual(event.parameters["source"] as? String, "social")
+        XCTAssertEqual(event.parameters["use_case"] as? String, "imagine_with_partner")
+    }
+
+    func test_onboardingSurveySkipped_parameters() {
+        XCTAssertEqual(AnalyticsEvent.onboardingSurveySkipped(atStep: 3).parameters["at_step"] as? Int, 3)
     }
 
     func test_reviewPromptAnswered_mapsBoolToInt() {

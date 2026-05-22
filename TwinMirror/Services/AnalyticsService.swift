@@ -26,6 +26,10 @@ enum AnalyticsEvent: Sendable {
     case reviewPromptShown
     case reviewPromptAnswered(satisfied: Bool)
     case reviewPromptCtaTapped(action: String)
+    case onboardingSurveyShown
+    case onboardingSurveyQuestionAnswered(step: Int, key: String, value: String)
+    case onboardingSurveyCompleted(ageBracket: String, source: String, useCase: String)
+    case onboardingSurveySkipped(atStep: Int)
 
     var name: String {
         switch self {
@@ -46,12 +50,16 @@ enum AnalyticsEvent: Sendable {
         case .reviewPromptShown:      return "review_prompt_shown"
         case .reviewPromptAnswered:   return "review_prompt_answered"
         case .reviewPromptCtaTapped:  return "review_prompt_cta_tapped"
+        case .onboardingSurveyShown:           return "onboarding_survey_shown"
+        case .onboardingSurveyQuestionAnswered: return "onboarding_survey_question_answered"
+        case .onboardingSurveyCompleted:       return "onboarding_survey_completed"
+        case .onboardingSurveySkipped:         return "onboarding_survey_skipped"
         }
     }
 
     var parameters: [String: Any] {
         switch self {
-        case .homeViewed, .composeOpened, .reviewPromptShown:
+        case .homeViewed, .composeOpened, .reviewPromptShown, .onboardingSurveyShown:
             return [:]
         case .composeImageSet(let slot, let faceDetected):
             return ["slot": slot, "face_detected": faceDetected ? 1 : 0]
@@ -81,6 +89,12 @@ enum AnalyticsEvent: Sendable {
             return ["satisfied": satisfied ? 1 : 0]
         case .reviewPromptCtaTapped(let action):
             return ["action": action]
+        case .onboardingSurveyQuestionAnswered(let step, let key, let value):
+            return ["step": step, "key": key, "value": value]
+        case .onboardingSurveyCompleted(let ageBracket, let source, let useCase):
+            return ["age_bracket": ageBracket, "source": source, "use_case": useCase]
+        case .onboardingSurveySkipped(let atStep):
+            return ["at_step": atStep]
         }
     }
 }

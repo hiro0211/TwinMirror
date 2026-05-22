@@ -2,6 +2,8 @@ import SwiftUI
 
 struct HomeView: View {
     @State private var isComposeShown = false
+    @State private var surveyService = OnboardingSurveyService.shared
+    @State private var isSurveyPresented = false
     private let analytics: AnalyticsTracking
 
     init(analytics: AnalyticsTracking = DefaultAnalytics.shared) {
@@ -58,7 +60,15 @@ struct HomeView: View {
                 ComposeView()
             }
         }
-        .onAppear { analytics.track(.homeViewed) }
+        .onAppear {
+            analytics.track(.homeViewed)
+            if !surveyService.isCompleted && !isSurveyPresented {
+                isSurveyPresented = true
+            }
+        }
+        .fullScreenCover(isPresented: $isSurveyPresented) {
+            OnboardingSurveyView(service: surveyService, analytics: analytics)
+        }
     }
 }
 
