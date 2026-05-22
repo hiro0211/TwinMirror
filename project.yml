@@ -22,6 +22,9 @@ packages:
   Firebase:
     url: https://github.com/firebase/firebase-ios-sdk.git
     from: 12.0.0
+  RevenueCat:
+    url: https://github.com/RevenueCat/purchases-ios-spm.git
+    from: 5.0.0
 targets:
   TwinMirror:
     type: application
@@ -35,6 +38,10 @@ targets:
         product: FirebaseAnalytics
       - package: Firebase
         product: FirebaseCore
+      - package: RevenueCat
+        product: RevenueCat
+      - package: RevenueCat
+        product: RevenueCatUI
     info:
       path: TwinMirror/Info.plist
       properties:
@@ -53,6 +60,7 @@ targets:
         ITSAppUsesNonExemptEncryption: false
         WORKER_URL: $(WORKER_URL)
         WORKER_AUTH_TOKEN: $(WORKER_AUTH_TOKEN)
+        REVENUECAT_API_KEY: $(REVENUECAT_API_KEY)
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.twinmirror.ios

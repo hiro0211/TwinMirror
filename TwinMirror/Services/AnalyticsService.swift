@@ -20,6 +20,9 @@ enum AnalyticsEvent: Sendable {
     case resultSaved(index: Int)
     case resultSaveFailed(errorKind: String)
     case usageLimitHit(mode: String)
+    case paywallShown(source: String)
+    case purchaseCompleted(packageID: String)
+    case restoreCompleted(wasPremium: Bool)
 
     var name: String {
         switch self {
@@ -34,6 +37,9 @@ enum AnalyticsEvent: Sendable {
         case .resultSaved:            return "result_saved"
         case .resultSaveFailed:       return "result_save_failed"
         case .usageLimitHit:          return "usage_limit_hit"
+        case .paywallShown:           return "paywall_shown"
+        case .purchaseCompleted:      return "purchase_completed"
+        case .restoreCompleted:       return "restore_completed"
         }
     }
 
@@ -59,6 +65,12 @@ enum AnalyticsEvent: Sendable {
             return ["error_kind": errorKind]
         case .usageLimitHit(let mode):
             return ["mode": mode]
+        case .paywallShown(let source):
+            return ["source": source]
+        case .purchaseCompleted(let packageID):
+            return ["package_id": packageID]
+        case .restoreCompleted(let wasPremium):
+            return ["was_premium": wasPremium ? 1 : 0]
         }
     }
 }

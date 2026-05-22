@@ -143,5 +143,9 @@ final class UsageLimiter: @unchecked Sendable {
 
 extension UsageLimiter {
     /// アプリ全体で共有するシングルトン。
-    static let shared = UsageLimiter()
+    /// `PurchaseService.shared.isPremium` をクロージャ経由で参照することで、
+    /// 購入直後にカウンタ閾値（1/日 → 1000/日）が即座に切り替わる。
+    static let shared = UsageLimiter(
+        isPremiumSubscriber: { MainActor.assumeIsolated { PurchaseService.shared.isPremium } }
+    )
 }

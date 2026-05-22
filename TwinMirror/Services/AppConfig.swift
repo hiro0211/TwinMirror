@@ -16,6 +16,11 @@ enum AppConfig {
         return raw.hasPrefix("REPLACE_") ? "" : raw
     }
 
+    static var revenueCatAPIKey: String {
+        let raw = Bundle.main.object(forInfoDictionaryKey: "REVENUECAT_API_KEY") as? String ?? ""
+        return raw.hasPrefix("REPLACE_") ? "" : raw
+    }
+
     static let termsURL = URL(string: "https://hiro0211.github.io/TwinMirror/terms.html")!
     static let privacyURL = URL(string: "https://hiro0211.github.io/TwinMirror/privacy.html")!
 }

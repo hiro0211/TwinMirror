@@ -43,7 +43,10 @@ struct GeminiImageGenerator: ImageGenerator {
                 ]
             ]],
             "generationConfig": [
-                "responseModalities": ["IMAGE"]
+                "responseModalities": ["IMAGE"],
+                "imageConfig": [
+                    "aspectRatio": "3:4"
+                ]
             ],
             "safetySettings": [
                 ["category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"],
@@ -110,9 +113,36 @@ struct GeminiImageGenerator: ImageGenerator {
                let base64 = inlineData["data"] as? String,
                let bytes = Data(base64Encoded: base64),
                let image = UIImage(data: bytes) {
-                return image
+                return normalizeToAspect3x4(image)
             }
         }
         throw ImageGenerationError.noImageReturned
+    }
+
+    /// Aspect-fill the source image into an 864×1152 (3:4 portrait) canvas,
+    /// center-cropping any overflow. Guarantees all generated images share
+    /// the same dimensions regardless of what Gemini returns.
+    static func normalizeToAspect3x4(_ image: UIImage) -> UIImage {
+        let target = CGSize(width: 864, height: 1152)
+        let srcSize = image.size
+        guard srcSize.width > 0, srcSize.height > 0 else { return image }
+
+        let srcRatio = srcSize.width / srcSize.height
+        let targetRatio: CGFloat = target.width / target.height
+
+        let scale: CGFloat = srcRatio > targetRatio
+            ? target.height / srcSize.height
+            : target.width / srcSize.width
+        let drawWidth = srcSize.width * scale
+        let drawHeight = srcSize.height * scale
+        let originX = (target.width - drawWidth) / 2
+        let originY = (target.height - drawHeight) / 2
+
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = 1
+        let renderer = UIGraphicsImageRenderer(size: target, format: format)
+        return renderer.image { _ in
+            image.draw(in: CGRect(x: originX, y: originY, width: drawWidth, height: drawHeight))
+        }
     }
 }

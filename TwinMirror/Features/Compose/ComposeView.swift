@@ -9,10 +9,14 @@ struct ComposeView: View {
     @State private var generationRequest: GenerationRequest?
     @State private var showAIConsentSheet = false
     @State private var showUsageLimitAlert = false
+    @State private var showPaywall = false
+    @State private var paywallSource: String = "unknown"
+    @State private var showManageSubscription = false
 
     @AppStorage("twinmirror.consent.ai") private var hasConsentedToAI = false
 
     private let usageLimiter = UsageLimiter.shared
+    private let purchaseService = PurchaseService.shared
     private let analytics: AnalyticsTracking
 
     init(analytics: AnalyticsTracking = DefaultAnalytics.shared) {
@@ -59,11 +63,13 @@ struct ComposeView: View {
         .alert("本日の生成上限に達しました", isPresented: $showUsageLimitAlert) {
             Button("OK", role: .cancel) {}
         } message: {
-            if viewModel.mode == .premium {
-                Text("プレミアムモードは1日あたり \(UsageLimiter.premiumDailyLimitFree) 回までご利用いただけます。高速モードでお試しいただくか、明日また使ってみてください。")
-            } else {
-                Text("コスト管理のため、高速モードは1日あたり \(UsageLimiter.fastDailyLimit) 回までご利用いただけます。明日また使ってみてください。")
-            }
+            Text("コスト管理のため、高速モードは1日あたり \(UsageLimiter.fastDailyLimit) 回までご利用いただけます。明日また使ってみてください。")
+        }
+        .sheet(isPresented: $showPaywall) {
+            PaywallView(source: paywallSource, analytics: analytics)
+        }
+        .sheet(isPresented: $showManageSubscription) {
+            SubscriptionManagementView()
         }
         .sheet(isPresented: $showAIConsentSheet) {
             AIConsentSheet(
@@ -170,9 +176,13 @@ struct ComposeView: View {
 
     private var modeSection: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.s) {
-            Text("生成モード")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(Theme.Colors.textPrimary)
+            HStack {
+                Text("生成モード")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.textPrimary)
+                Spacer()
+                subscriptionAffordance
+            }
             HStack(spacing: Theme.Spacing.s) {
                 ModeCard(
                     title: "高速",
@@ -187,7 +197,7 @@ struct ComposeView: View {
                     subtitle: "3枚生成 ✦",
                     iconName: "sparkles",
                     isSelected: viewModel.mode == .premium,
-                    badge: "\(usageLimiter.remainingPremiumToday) / \(UsageLimiter.premiumDailyLimitFree)",
+                    badge: premiumBadgeText,
                     action: { viewModel.mode = .premium }
                 )
             }
@@ -200,13 +210,54 @@ struct ComposeView: View {
         }
     }
 
+    @ViewBuilder
+    private var subscriptionAffordance: some View {
+        if purchaseService.isPremium {
+            Button {
+                showManageSubscription = true
+            } label: {
+                Label("管理", systemImage: "checkmark.seal.fill")
+                    .font(.system(size: 11, weight: .semibold))
+                    .padding(.horizontal, Theme.Spacing.s)
+                    .padding(.vertical, 4)
+                    .foregroundStyle(Theme.Colors.primaryDeep)
+                    .background(Theme.Colors.primaryDeep.opacity(0.12), in: .capsule)
+            }
+        } else {
+            Button {
+                paywallSource = "pro_button"
+                showPaywall = true
+            } label: {
+                Label("Pro", systemImage: "sparkles")
+                    .font(.system(size: 11, weight: .bold))
+                    .padding(.horizontal, Theme.Spacing.s)
+                    .padding(.vertical, 4)
+                    .foregroundStyle(.white)
+                    .background(Theme.Gradients.ctaButton, in: .capsule)
+            }
+        }
+    }
+
+    private var premiumBadgeText: String {
+        if purchaseService.isPremium {
+            return "無制限"
+        }
+        return "\(usageLimiter.remainingPremiumToday) / \(UsageLimiter.premiumDailyLimitFree)"
+    }
+
     private var usageBadge: some View {
         let remaining = viewModel.mode == .premium ? usageLimiter.remainingPremiumToday : usageLimiter.remainingFastToday
         let limit = viewModel.mode == .premium ? UsageLimiter.premiumDailyLimitFree : UsageLimiter.fastDailyLimit
+        let label: String = {
+            if viewModel.mode == .premium && purchaseService.isPremium {
+                return "本日の残り (プレミアム): 無制限"
+            }
+            return "本日の残り (\(viewModel.mode == .premium ? "プレミアム" : "高速")): \(remaining) / \(limit)"
+        }()
         return HStack(spacing: 6) {
             Image(systemName: "gauge.medium")
                 .font(.system(size: 12, weight: .semibold))
-            Text("本日の残り (\(viewModel.mode == .premium ? "プレミアム" : "高速")): \(remaining) / \(limit)")
+            Text(label)
                 .font(.system(size: 12, weight: .medium))
         }
         .foregroundStyle(Theme.Colors.textSecondary)
@@ -235,7 +286,7 @@ struct ComposeView: View {
         let canForMode = viewModel.mode == .premium ? usageLimiter.canGeneratePremium : usageLimiter.canGenerateFast
         guard canForMode else {
             analytics.track(.usageLimitHit(mode: viewModel.mode.rawValue))
-            showUsageLimitAlert = true
+            presentLimitUI(for: viewModel.mode)
             return
         }
         guard hasConsentedToAI else {
@@ -248,12 +299,24 @@ struct ComposeView: View {
     private func proceedToGenerate() {
         guard usageLimiter.tryConsume(mode: viewModel.mode) else {
             analytics.track(.usageLimitHit(mode: viewModel.mode.rawValue))
-            showUsageLimitAlert = true
+            presentLimitUI(for: viewModel.mode)
             return
         }
         if let req = viewModel.buildGenerationRequest() {
             generationRequest = req
             navigateToResult = true
+        }
+    }
+
+    /// 上限到達時の UI を選ぶ。
+    /// プレミアムモードかつ未加入の場合は Paywall を出す。
+    /// それ以外（高速モードの上限、または既に加入済みなのに何らかの理由で上限を超えた場合）はアラート。
+    private func presentLimitUI(for mode: GenerationMode) {
+        if mode == .premium && !purchaseService.isPremium {
+            paywallSource = "limit_hit"
+            showPaywall = true
+        } else {
+            showUsageLimitAlert = true
         }
     }
 

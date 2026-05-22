@@ -20,10 +20,6 @@
 	<string>0.1.0</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
-	<key>WORKER_URL</key>
-	<string>$(WORKER_URL)</string>
-	<key>WORKER_AUTH_TOKEN</key>
-	<string>$(WORKER_AUTH_TOKEN)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>LSRequiresIPhoneOS</key>
@@ -32,6 +28,8 @@
 	<string>生成された子ども画像を写真ライブラリに保存するために使用します。</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>2人の写真を選んで子ども画像を生成するために、写真ライブラリへのアクセスを使用します。</string>
+	<key>REVENUECAT_API_KEY</key>
+	<string>$(REVENUECAT_API_KEY)</string>
 	<key>UILaunchScreen</key>
 	<dict>
 		<key>UIColorName</key>
@@ -45,5 +43,9 @@
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
 	</array>
+	<key>WORKER_AUTH_TOKEN</key>
+	<string>$(WORKER_AUTH_TOKEN)</string>
+	<key>WORKER_URL</key>
+	<string>$(WORKER_URL)</string>
 </dict>
 </plist>

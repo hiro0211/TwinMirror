@@ -27,6 +27,19 @@ final class GeminiImageGeneratorTests: XCTestCase {
         XCTAssertNotNil(firstImage["data"])
     }
 
+    func test_buildRequestBody_includesAspectRatio3x4() throws {
+        let generator = GeminiImageGenerator(workerURL: workerURL, authToken: "tok")
+        let body = try generator.buildRequestBody(
+            prompt: "p",
+            fatherJPEG: Data([0x01]),
+            motherJPEG: Data([0x02])
+        )
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
+        let generationConfig = try XCTUnwrap(json["generationConfig"] as? [String: Any])
+        let imageConfig = try XCTUnwrap(generationConfig["imageConfig"] as? [String: Any])
+        XCTAssertEqual(imageConfig["aspectRatio"] as? String, "3:4")
+    }
+
     func test_buildRequestBody_includesSafetySettings() throws {
         let generator = GeminiImageGenerator(workerURL: workerURL, authToken: "tok")
         let body = try generator.buildRequestBody(
@@ -39,7 +52,7 @@ final class GeminiImageGeneratorTests: XCTestCase {
         XCTAssertFalse(safety.isEmpty)
     }
 
-    func test_parseResponse_extractsBase64Image() throws {
+    func test_parseResponse_normalizesOutputTo3x4Aspect() throws {
         let onePixelPNG = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==")!
         let payload: [String: Any] = [
             "candidates": [[
@@ -56,8 +69,10 @@ final class GeminiImageGeneratorTests: XCTestCase {
         let data = try JSONSerialization.data(withJSONObject: payload)
 
         let image = try GeminiImageGenerator.parseResponse(data)
-        XCTAssertEqual(image.size.width, 1, accuracy: 0.1)
-        XCTAssertEqual(image.size.height, 1, accuracy: 0.1)
+        let ratio = image.size.width / image.size.height
+        XCTAssertEqual(ratio, 3.0 / 4.0, accuracy: 0.01, "Output must be 3:4 portrait")
+        XCTAssertEqual(image.size.width, 864, accuracy: 0.1)
+        XCTAssertEqual(image.size.height, 1152, accuracy: 0.1)
     }
 
     func test_parseResponse_safetyBlock_throws() throws {

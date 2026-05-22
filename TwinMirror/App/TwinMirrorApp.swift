@@ -11,6 +11,9 @@ struct TwinMirrorApp: App {
             FirebaseApp.configure()
         }
         #endif
+        MainActor.assumeIsolated {
+            PurchaseService.shared.bootstrap()
+        }
     }
 
     var body: some Scene {

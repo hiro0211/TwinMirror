@@ -662,3 +662,96 @@ Firebase Analytics 連携を新規導入。
 ### 次回やるべきこと（任意）
 - README.md からの `docs/architecture.md` への内部リンク追加
 - 図に StoreKit 2 / IAP 周りが正式に組み込まれたタイミングで該当セクション更新
+
+## 2026-05-22
+
+### 作業内容
+- プレミアムモード（3 枚生成）の出力サイズ不揃いを 3:4 縦長スマホサイズに統一
+- プラン: `/Users/arimurahiroaki/.claude/plans/3-3-4-zany-bengio.md`
+- 三層防御で実装：
+  1. **API パラメータ**: `GeminiImageGenerator.buildRequestBody` の `generationConfig` に `imageConfig.aspectRatio: "3:4"` を追加（Gemini 2.5/3.1 image preview 共に正式サポート）
+  2. **プロンプト指示**: `child_realistic_v2.txt` / `child_illustration_v2.txt` の COMPOSITION 先頭に「Output aspect ratio: 3:4 vertical portrait」を明示
+  3. **後段正規化**: `parseResponse` の戻り値直前に `normalizeToAspect3x4(_:)` を追加。アスペクトフィル + 中央クロップで 864×1152 ピクセルに統一
+- TDD: 失敗テストを先に書き（`test_buildRequestBody_includesAspectRatio3x4`、`test_parseResponse_normalizesOutputTo3x4Aspect`）→ 実装 → Green
+
+### 検証結果
+- `xcodebuild test`: TEST SUCCEEDED, 98 tests passed, 0 failures
+- 既存テストの回帰なし
+
+### 変更ファイル
+- `TwinMirror/Services/GeminiImageGenerator.swift` (imageConfig 追加・normalizeToAspect3x4 追加)
+- `TwinMirror/Resources/Prompts/child_realistic_v2.txt` (3:4 指示を COMPOSITION に追加)
+- `TwinMirror/Resources/Prompts/child_illustration_v2.txt` (同上)
+- `TwinMirrorTests/GeminiImageGeneratorTests.swift` (新規 2 テスト追加、旧 `test_parseResponse_extractsBase64Image` を `test_parseResponse_normalizesOutputTo3x4Aspect` にリネーム)
+
+### 発見した問題点・注意事項
+- `gemini-3.1-flash-image-preview` には `imageConfig.aspectRatio` を稀に無視する既知バグ報告あり（Google AI Developers Forum）。三層防御の根拠
+- API JSON フィールド名は **`imageConfig.aspectRatio`** が正（一部のドキュメントが `responseFormat.image.aspectRatio` と紛らわしく書いてあるが、Vercel AI Gateway / Kong / LiteLLM / LangChain など現場の実装はすべて `imageConfig` を使用）
+- `normalizeToAspect3x4` の `UIGraphicsImageRenderer` には `format.scale = 1` を明示（既存 `ImagePreprocessor.resize` と同じパターン）。これがないと Retina スケール（×2/×3）で意図せず大きな PNG が出る
+
+### 次回やるべきこと
+- 実機でプレミアム生成を実行し、3 枚すべて 864×1152 で揃っていることを目視確認
+- fast モード（1 枚生成）でも 3:4 になっていることを確認
+- 必要なら `bestIndex` 選択ロジック（JPEG サイズで最大を選ぶ）を見直す — 全て同サイズになったため JPEG バイト数比較が無意味になる可能性
+
+## 2026-05-22
+
+### 作業内容
+- RevenueCat SDK 統合（プラン: `/Users/arimurahiroaki/.claude/plans/help-me-integrate-revenuecat-lively-cherny.md`）
+- Swift Package Manager で `purchases-ios-spm` v5.x（解決済み: 5.73.1）、`RevenueCat` と `RevenueCatUI` の両プロダクトを追加
+- 新規 `Services/PurchaseService.swift`: `@MainActor @Observable` シングルトン。`bootstrap()` で `Purchases.configure`、`customerInfoStream` を購読、`isPremium`/`purchase`/`restorePurchases`/`refreshOfferings` を提供
+- Entitlement 識別子は `"TwinMirror Premium"`（`nonisolated static let premiumEntitlementID`）
+- `UsageLimiter.shared` を `{ MainActor.assumeIsolated { PurchaseService.shared.isPremium } }` に切替（既存テストは全パス）
+- `TwinMirrorApp.init()` に `PurchaseService.shared.bootstrap()` を追加（Firebase の次）
+- 新規 Paywall 一式（`Features/Paywall/`）: `PaywallView`（カスタム SwiftUI）、`PaywallViewModel`、`SubscriptionManagementView`（RevenueCatUI の `CustomerCenterView` ラッパー）
+- ComposeView に Pro/管理ピル追加、プレミアム上限時は Paywall シート提示、加入後は「無制限」表示に切替
+- `AnalyticsEvent` に `paywallShown(source:)`/`purchaseCompleted(packageID:)`/`restoreCompleted(wasPremium:)` 追加
+- 新規 `TwinMirrorTests/PurchaseServiceTests.swift`（4 件）と `AnalyticsServiceTests` 拡張（2 件）
+
+### 検証結果
+- `xcodegen generate`: 成功
+- `xcodebuild test -scheme TwinMirror -destination 'platform=iOS Simulator,name=iPhone 17'`: **TEST SUCCEEDED**, 104 tests passed, 0 failures
+- 既存 `UsageLimiterTests` 15 件すべてパス（`shared` の差し替えで回帰なし）
+
+### 設定したこと
+- `TwinMirror.xcconfig` に `REVENUECAT_API_KEY = test_nBedRHEzfCmiNvhxzLMbucdSByG`（gitignore 済み）
+- `TwinMirror.xcconfig.example` に `REVENUECAT_API_KEY = REPLACE_WITH_REVENUECAT_API_KEY` プレースホルダ追加
+- `project.yml` の Info.plist properties に `REVENUECAT_API_KEY: $(REVENUECAT_API_KEY)` 追加
+- `AppConfig.swift` に `revenueCatAPIKey` アクセサ追加（`REPLACE_` プレフィックスは空に正規化）
+
+### 次回やるべきこと（手動・ダッシュボード/実機検証）
+- RevenueCat ダッシュボードで以下を確認・設定:
+  - Project の API key（iOS）が現在の test key と一致しているか
+  - Entitlement に `TwinMirror Premium` が存在しアクティブか（大小・スペース完全一致）
+  - Offering（current）に `monthly` と `yearly` の Package が紐付いているか
+  - Products が App Store Connect の Product ID と Sandbox/Production で一致しているか
+- App Store Connect で月額・年額の自動更新サブスクリプションを作成（テスト用 Sandbox アカウントを準備）
+- StoreKit Configuration File（`*.storekit`）を用意して Xcode のスキームに紐付ければシミュレータで購入フローを E2E 検証可能
+- 実機 or シミュレータで以下を手動確認:
+  1. Compose 画面の「Pro」ピル → PaywallView 表示 → プラン選択 → 購入 → 自動 dismiss
+  2. 購入後に「管理」ピルへ切替・「無制限」バッジ表示
+  3. プレミアム枠 1/1 を使い切った 2 回目に Paywall が自動表示される（`bypassLimit` は DEBUG で true なのでテストには Release ビルドまたは bypass 一時無効化が必要）
+  4. 「サブスクリプション管理」から `CustomerCenterView` が開いて解約導線が機能する
+  5. 機種変・再インストール後に「購入を復元」で `isPremium` 復元
+- 必要なら本番用 API key（`appl_...`）を別途発行して xcconfig を切替
+
+### 変更したファイル（主要）
+- `project.yml`（package + dependency + Info.plist）
+- `TwinMirror.xcconfig` / `TwinMirror.xcconfig.example`
+- `TwinMirror/App/TwinMirrorApp.swift`
+- `TwinMirror/Services/AppConfig.swift`
+- `TwinMirror/Services/UsageLimiter.swift`（`.shared` のみ）
+- `TwinMirror/Services/AnalyticsService.swift`（イベント追加）
+- `TwinMirror/Services/PurchaseService.swift`（新規）
+- `TwinMirror/Features/Paywall/PaywallView.swift`（新規）
+- `TwinMirror/Features/Paywall/PaywallViewModel.swift`（新規）
+- `TwinMirror/Features/Paywall/SubscriptionManagementView.swift`（新規）
+- `TwinMirror/Features/Compose/ComposeView.swift`（Pro/管理ピル、Paywall sheet、premiumBadgeText）
+- `TwinMirrorTests/PurchaseServiceTests.swift`（新規）
+- `TwinMirrorTests/AnalyticsServiceTests.swift`（新規イベントのテスト追加）
+
+### 発見した問題点・注意事項
+- `PurchaseService` は `@MainActor` 隔離のため、静的ヘルパー（`premiumEntitlementID` / `isPremium(in:)`）は `nonisolated` で公開してテストから同期コンテキストで呼べるようにした
+- `UsageLimiter.shared` のクロージャは `MainActor.assumeIsolated` で `PurchaseService.shared.isPremium` を読む。`tryConsume*` が常にメインスレッドから呼ばれる前提（現状の SwiftUI 経由呼び出しでは満たされる）
+- xcconfig は gitignore 済み。CI 等でビルドする場合は別途 secret 注入が必要
+- API key は `test_` プレフィックスのため Sandbox/開発用。本番リリース前に `appl_...` 形式の本番 key への差し替えが必要

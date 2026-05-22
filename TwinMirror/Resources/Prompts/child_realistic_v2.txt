@@ -22,6 +22,8 @@ GENDER: {{GENDER}}
 {{AGE_BLOCK}}
 
 COMPOSITION:
+- Output aspect ratio: 3:4 vertical portrait (taller than wide, smartphone screen proportions).
+- Frame the head-and-shoulders portrait centered within this 3:4 vertical canvas.
 - Single subject, the imagined child only, centered, head-and-shoulders portrait.
 - Soft natural daylight from front-left, no harsh shadows.
 - Neutral cream or pale pastel background, slightly blurred.

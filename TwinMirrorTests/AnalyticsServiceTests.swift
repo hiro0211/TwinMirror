@@ -46,6 +46,19 @@ final class AnalyticsEventNameTests: XCTestCase {
             "result_save_failed"
         )
         XCTAssertEqual(AnalyticsEvent.usageLimitHit(mode: "fast").name, "usage_limit_hit")
+        XCTAssertEqual(AnalyticsEvent.paywallShown(source: "limit_hit").name, "paywall_shown")
+        XCTAssertEqual(AnalyticsEvent.purchaseCompleted(packageID: "monthly").name, "purchase_completed")
+        XCTAssertEqual(AnalyticsEvent.restoreCompleted(wasPremium: true).name, "restore_completed")
+    }
+
+    func test_paywallShown_parameters() {
+        let event = AnalyticsEvent.paywallShown(source: "pro_button")
+        XCTAssertEqual(event.parameters["source"] as? String, "pro_button")
+    }
+
+    func test_restoreCompleted_mapsBoolToInt() {
+        XCTAssertEqual(AnalyticsEvent.restoreCompleted(wasPremium: true).parameters["was_premium"] as? Int, 1)
+        XCTAssertEqual(AnalyticsEvent.restoreCompleted(wasPremium: false).parameters["was_premium"] as? Int, 0)
     }
 
     func test_composeImageSet_parametersUseSnakeCase() {
