@@ -25,11 +25,22 @@ final class UsageLimiter: @unchecked Sendable {
     private let now: @Sendable () -> Date
     private let calendar: Calendar
     private let isPremiumSubscriber: @Sendable () -> Bool
+    private let bypassLimit: Bool
 
     private static let fastDateKey = "twinmirror.usage.date"
     private static let fastCountKey = "twinmirror.usage.count"
     private static let premiumDateKey = "twinmirror.usage.premium.date"
     private static let premiumCountKey = "twinmirror.usage.premium.count"
+
+    /// Xcode 経由でビルドした開発ビルド（Debug 構成）では利用制限を無効化する。
+    /// TestFlight / App Store 配布の Release ビルドでは false。
+    static var defaultBypassLimit: Bool {
+        #if DEBUG
+        return true
+        #else
+        return false
+        #endif
+    }
 
     init(
         defaults: UserDefaults = .standard,
@@ -39,18 +50,21 @@ final class UsageLimiter: @unchecked Sendable {
             c.timeZone = TimeZone(identifier: "Asia/Tokyo") ?? .current
             return c
         }(),
-        isPremiumSubscriber: @escaping @Sendable () -> Bool = { false }
+        isPremiumSubscriber: @escaping @Sendable () -> Bool = { false },
+        bypassLimit: Bool = UsageLimiter.defaultBypassLimit
     ) {
         self.defaults = defaults
         self.now = now
         self.calendar = calendar
         self.isPremiumSubscriber = isPremiumSubscriber
+        self.bypassLimit = bypassLimit
     }
 
     // MARK: - Fast
 
     var remainingFastToday: Int {
-        max(0, Self.fastDailyLimit - fastCount())
+        if bypassLimit { return Self.fastDailyLimit }
+        return max(0, Self.fastDailyLimit - fastCount())
     }
 
     /// 旧 API 互換: fast の残量を返す。
@@ -68,7 +82,8 @@ final class UsageLimiter: @unchecked Sendable {
     }
 
     var remainingPremiumToday: Int {
-        max(0, premiumDailyLimit - premiumCount())
+        if bypassLimit { return Self.premiumDailyLimitFree }
+        return max(0, premiumDailyLimit - premiumCount())
     }
 
     var canGeneratePremium: Bool { remainingPremiumToday > 0 }
@@ -93,6 +108,7 @@ final class UsageLimiter: @unchecked Sendable {
     // MARK: - Internals
 
     private func tryConsumeFast() -> Bool {
+        if bypassLimit { return true }
         guard canGenerateFast else { return false }
         let next = fastCount() + 1
         defaults.set(todayKey(), forKey: Self.fastDateKey)
@@ -101,6 +117,7 @@ final class UsageLimiter: @unchecked Sendable {
     }
 
     private func tryConsumePremium() -> Bool {
+        if bypassLimit { return true }
         guard canGeneratePremium else { return false }
         let next = premiumCount() + 1
         defaults.set(todayKey(), forKey: Self.premiumDateKey)
