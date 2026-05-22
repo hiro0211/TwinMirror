@@ -3,6 +3,7 @@ import SwiftUI
 struct ResultView: View {
     @State private var viewModel: ResultViewModel
     @State private var selectedIndex: Int = 0
+    @State private var reviewService = ReviewRequestService.shared
 
     init(initialRequest: GenerationRequest, fatherImage: UIImage, motherImage: UIImage) {
         _viewModel = State(initialValue: ResultViewModel(
@@ -40,6 +41,12 @@ struct ResultView: View {
         .navigationTitle("結果")
         .navigationBarTitleDisplayMode(.inline)
         .task { await viewModel.generate() }
+        .sheet(isPresented: Binding(
+            get: { reviewService.shouldPresent },
+            set: { if !$0 { reviewService.dismiss() } }
+        )) {
+            ReviewRequestSheet(service: reviewService)
+        }
     }
 
     @ViewBuilder

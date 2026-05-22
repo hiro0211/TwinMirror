@@ -69,24 +69,25 @@ struct AgeRulerPicker: View {
 
     private var ruler: some View {
         GeometryReader { geo in
+            // 中央指標と最初/最後のティック中心を揃えるための左右余白。
+            // `.contentMargins(for: .scrollContent)` に渡すことで、空白 view を
+            // LazyHStack 内に入れて scrollTargetLayout の snap 候補に混ぜる事故を防ぐ。
             let halfWidth = geo.size.width / 2
-            // tick view 自体が tickSpacing 幅で、中央寄せのため左右に空白を入れる
-            let leftPad = max(0, halfWidth - tickSpacing / 2)
+            let edgePad = max(0, halfWidth - tickSpacing / 2)
 
             ScrollView(.horizontal, showsIndicators: false) {
-                LazyHStack(spacing: 0) {
-                    Color.clear.frame(width: leftPad, height: rulerHeight)
+                HStack(spacing: 0) {
                     ForEach(minYears...maxYears, id: \.self) { y in
                         TickMark(year: y, isMajor: y.isMultiple(of: 5))
                             .frame(width: tickSpacing, height: rulerHeight)
                             .id(y)
                     }
-                    Color.clear.frame(width: leftPad, height: rulerHeight)
                 }
                 .scrollTargetLayout()
             }
+            .contentMargins(.horizontal, edgePad, for: .scrollContent)
             .scrollPosition(id: $scrolledYear, anchor: .center)
-            .scrollTargetBehavior(.viewAligned)
+            .scrollTargetBehavior(.viewAligned(limitBehavior: .always))
             .overlay(centerIndicator)
         }
         .frame(height: rulerHeight)

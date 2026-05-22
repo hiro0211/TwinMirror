@@ -49,6 +49,19 @@ final class AnalyticsEventNameTests: XCTestCase {
         XCTAssertEqual(AnalyticsEvent.paywallShown(source: "limit_hit").name, "paywall_shown")
         XCTAssertEqual(AnalyticsEvent.purchaseCompleted(packageID: "monthly").name, "purchase_completed")
         XCTAssertEqual(AnalyticsEvent.restoreCompleted(wasPremium: true).name, "restore_completed")
+        XCTAssertEqual(AnalyticsEvent.reviewPromptShown.name, "review_prompt_shown")
+        XCTAssertEqual(AnalyticsEvent.reviewPromptAnswered(satisfied: true).name, "review_prompt_answered")
+        XCTAssertEqual(AnalyticsEvent.reviewPromptCtaTapped(action: "open_app_store").name, "review_prompt_cta_tapped")
+    }
+
+    func test_reviewPromptAnswered_mapsBoolToInt() {
+        XCTAssertEqual(AnalyticsEvent.reviewPromptAnswered(satisfied: true).parameters["satisfied"] as? Int, 1)
+        XCTAssertEqual(AnalyticsEvent.reviewPromptAnswered(satisfied: false).parameters["satisfied"] as? Int, 0)
+    }
+
+    func test_reviewPromptCtaTapped_parameters() {
+        let event = AnalyticsEvent.reviewPromptCtaTapped(action: "open_feedback")
+        XCTAssertEqual(event.parameters["action"] as? String, "open_feedback")
     }
 
     func test_paywallShown_parameters() {

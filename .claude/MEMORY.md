@@ -755,3 +755,93 @@ Firebase Analytics 連携を新規導入。
 - `UsageLimiter.shared` のクロージャは `MainActor.assumeIsolated` で `PurchaseService.shared.isPremium` を読む。`tryConsume*` が常にメインスレッドから呼ばれる前提（現状の SwiftUI 経由呼び出しでは満たされる）
 - xcconfig は gitignore 済み。CI 等でビルドする場合は別途 secret 注入が必要
 - API key は `test_` プレフィックスのため Sandbox/開発用。本番リリース前に `appl_...` 形式の本番 key への差し替えが必要
+
+## 2026-05-22（AgeRulerPicker スナップ不能バグ修正）
+
+### 報告された現象
+- 年齢ルーラーで「4歳」にスワイプしようとすると、勝手に 7歳 や 0歳 に戻される
+- 結果として 0歳 以外で生成画面に進めず、ユーザーには「0〜5歳の生成ができない」「メモリがズレている」と見えていた
+
+### 根本原因（1 つに集約）
+`AgeRulerPicker.swift` の `ruler` で `LazyHStack` の直接の子として太い `Color.clear` パッド (≒160pt) を入れ、それを `.scrollTargetLayout()` で包んでいた。
+
+- `.scrollTargetLayout()` は LazyHStack の直接の子をすべて snap target にするため、空白パッドも `.viewAligned` の snap 候補に混入していた → 4 歳付近で指を離すとパッドや lazy 化されていない隣接 id に吸い寄せられて 7/0 へ戻っていた
+- `LazyHStack` の lazy 化により、`.scrollPosition(id:)` は実体化済みの id しか追跡できず、窓外への移動が阻害されていた
+- 「生成失敗」は picker の不具合の副作用。生成パイプライン（PromptBuilder / GenerationOrchestrator / GeminiImageGenerator / Worker）には年齢依存の分岐は元から存在しない
+
+### 修正内容
+`TwinMirror/DesignSystem/AgeRulerPicker.swift` の `ruler` computed property のみ書き換え：
+
+1. `LazyHStack` → `HStack`（21 ticks のみ。lazy 化の便益なし）
+2. 内部の `Color.clear` パッドを削除し、ScrollView レベルの `.contentMargins(.horizontal, edgePad, for: .scrollContent)` に置換 → パッドが snap target にならない
+3. `.scrollTargetBehavior(.viewAligned(limitBehavior: .always))` で慣性中間止まりも防止
+
+### 検証結果
+- `xcodebuild test -scheme TwinMirror -destination 'platform=iOS Simulator,name=iPhone 17'`: **TEST SUCCEEDED, 104 tests, 0 failures**
+- 手動 UI 検証はユーザー側で必要（Compose 画面 → ルーラーを 0/4/5/7/12/18/20 へドラッグ → 指を離した位置で snap が中央指標に揃い、`X歳` 表示と一致すること）
+
+### 計画ファイル
+- `/Users/arimurahiroaki/.claude/plans/0-5-0-2-shimmying-pebble.md`
+
+### 変更ファイル
+- `TwinMirror/DesignSystem/AgeRulerPicker.swift`（`ruler` のみ）
+
+### 注意事項
+- `.contentMargins(_:_:for:)` は iOS 17+ 公式 API。deployment target iOS 26 なので問題なし
+- 万一 `for: .scrollContent` で余白が効かない SDK バリエーションに遭遇したら `.safeAreaPadding(.horizontal, edgePad)` に切替（同等効果、API がより安定）
+- SourceKit が `Cannot find ChildAge/Theme in scope` を吐くが、これは indexer の既存ノイズで実害なし（既往メモリにも記録あり）。`xcodebuild test` が正なので問題なし
+
+---
+
+## 2026-05-22（アプリレビュー依頼モーダル実装）
+
+### 目的
+App Store のレビュー数と評価を増やすため、ポジティブな瞬間に「楽しんでいるユーザー」だけを App Store のレビュー記入画面へ誘導する Satisfaction Gate パターンを実装。
+
+### ベストプラクティス調査結果（2026-05時点 WebSearch）
+- Satisfaction Gate（事前ふるい分け）で平均評価 +0.5 動く事例あり
+- ポジティブな瞬間（タスク完了直後）でトリガー
+- インストール直後は出さない（3〜7日）
+- 90日クールダウン、ライフタイムキャップ 2〜3
+- バージョン単位で1回まで（Apple HIG）
+- Apple の `requestReview` は使わず、`apps.apple.com/app/id...?action=write-review` ディープリンクで安全側に振る
+
+### 実装サマリ
+- 新規 `ReviewRequestService`（`@MainActor @Observable` シングルトン）
+  - 表示条件: install≥3日 / saveCount≥2 / cooldown≥60日 / 同バージョン未提示 / lifetime<3
+  - UserDefaults キーは `twinmirror.review.*` 名前空間
+- 新規 `ReviewRequestSheet`（3 ステップの SwiftUI シート）
+  - Step1 「ツインミラーはいかがですか？」→ 「気に入っている」/「もう少し」
+  - Step2a → App Store の write-review URL を `openURL`
+  - Step2b → mailto: でフィードバック窓口（`support@twinmirror.app`）
+- `ResultViewModel.saveCurrent` 成功直後に `reviewService.recordPositiveEvent()`
+- `TwinMirrorApp.init` で `ReviewRequestService.shared.bootstrap()` を呼んで初回起動日を記録
+- AnalyticsEvent に `reviewPromptShown` / `reviewPromptAnswered(satisfied:)` / `reviewPromptCtaTapped(action:)` を追加
+
+### 変更ファイル
+- 新規: `TwinMirror/Services/ReviewRequestService.swift`
+- 新規: `TwinMirror/Features/Review/ReviewRequestSheet.swift`
+- 新規: `TwinMirrorTests/ReviewRequestServiceTests.swift`（11 ケース）
+- 修正: `TwinMirror/Services/AppConfig.swift`（`appStoreID` / write-review URL / mailto）
+- 修正: `TwinMirror/Services/AnalyticsService.swift`（3 イベント追加）
+- 修正: `TwinMirror/App/TwinMirrorApp.swift`（bootstrap）
+- 修正: `TwinMirror/Features/Result/ResultViewModel.swift`（DI + recordPositiveEvent）
+- 修正: `TwinMirror/Features/Result/ResultView.swift`（.sheet バインディング）
+- 修正: `TwinMirrorTests/AnalyticsServiceTests.swift`（3 ケース追加）
+
+### 検証
+- `xcodegen generate` 実行済み（新規ファイルが target に追加）
+- `xcodebuild test -scheme TwinMirror -destination 'platform=iOS Simulator,name=iPhone 17'`: **TEST SUCCEEDED, 117 tests, 0 failures**（旧 104 → +13）
+
+### 未完了タスク・次回やるべきこと
+- **支援メールアドレス `support@twinmirror.app` は実在しない**。ドメイン取得 → メール転送設定するか、`AppConfig.feedbackMailtoURL` を実在アドレスに差し替える必要あり
+- 実機 E2E（3 日経過＋2 回保存後にだけ表示されることを `UserDefaults` 手動操作で確認）はリリース前に推奨
+- TestFlight で初回観測後、`review_prompt_answered` の `satisfied=1` 割合・`review_prompt_cta_tapped(action=open_app_store)` 率を Firebase Analytics で確認し、しきい値（3日/2回/60日）の最適化検討
+
+### 計画ファイル
+- `/Users/arimurahiroaki/.claude/plans/appstor-glimmering-wand.md`
+
+### 注意事項
+- Apple の native `requestReview()` を使うパターン（フィルタリング後に表示）は Apple ガイドラインのグレーゾーンなので**意図的に避けた**。今回は明示的に「レビューを書く」を選んだユーザーだけ write-review ディープリンクで App Store に飛ばす設計
+- ライフタイム上限 3 は Apple 側のレート制限（365日に3回）と整合
+- `Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString")` でバージョンを取得し、同バージョン2回目以降は出さない

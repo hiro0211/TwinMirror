@@ -23,6 +23,9 @@ enum AnalyticsEvent: Sendable {
     case paywallShown(source: String)
     case purchaseCompleted(packageID: String)
     case restoreCompleted(wasPremium: Bool)
+    case reviewPromptShown
+    case reviewPromptAnswered(satisfied: Bool)
+    case reviewPromptCtaTapped(action: String)
 
     var name: String {
         switch self {
@@ -40,12 +43,15 @@ enum AnalyticsEvent: Sendable {
         case .paywallShown:           return "paywall_shown"
         case .purchaseCompleted:      return "purchase_completed"
         case .restoreCompleted:       return "restore_completed"
+        case .reviewPromptShown:      return "review_prompt_shown"
+        case .reviewPromptAnswered:   return "review_prompt_answered"
+        case .reviewPromptCtaTapped:  return "review_prompt_cta_tapped"
         }
     }
 
     var parameters: [String: Any] {
         switch self {
-        case .homeViewed, .composeOpened:
+        case .homeViewed, .composeOpened, .reviewPromptShown:
             return [:]
         case .composeImageSet(let slot, let faceDetected):
             return ["slot": slot, "face_detected": faceDetected ? 1 : 0]
@@ -71,6 +77,10 @@ enum AnalyticsEvent: Sendable {
             return ["package_id": packageID]
         case .restoreCompleted(let wasPremium):
             return ["was_premium": wasPremium ? 1 : 0]
+        case .reviewPromptAnswered(let satisfied):
+            return ["satisfied": satisfied ? 1 : 0]
+        case .reviewPromptCtaTapped(let action):
+            return ["action": action]
         }
     }
 }

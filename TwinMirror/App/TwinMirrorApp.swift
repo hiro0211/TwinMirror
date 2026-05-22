@@ -13,6 +13,7 @@ struct TwinMirrorApp: App {
         #endif
         MainActor.assumeIsolated {
             PurchaseService.shared.bootstrap()
+            ReviewRequestService.shared.bootstrap()
         }
     }
 

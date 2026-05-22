@@ -21,13 +21,15 @@ final class ResultViewModel {
     private let orchestrator: GenerationOrchestrator
     private let saveService: PhotoSaving
     private let analytics: AnalyticsTracking
+    private let reviewService: ReviewRequestService
 
     init(
         initialRequest: GenerationRequest,
         fatherImage: UIImage,
         motherImage: UIImage,
         saveService: PhotoSaving = PhotoSaveService(),
-        analytics: AnalyticsTracking = DefaultAnalytics.shared
+        analytics: AnalyticsTracking = DefaultAnalytics.shared,
+        reviewService: ReviewRequestService = .shared
     ) {
         self.request = initialRequest
         self.gender = initialRequest.gender
@@ -43,6 +45,7 @@ final class ResultViewModel {
         }
         self.saveService = saveService
         self.analytics = analytics
+        self.reviewService = reviewService
     }
 
     func generate() async {
@@ -82,6 +85,7 @@ final class ResultViewModel {
             savedToast = "保存しました"
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
             analytics.track(.resultSaved(index: index))
+            reviewService.recordPositiveEvent()
             Task {
                 try? await Task.sleep(nanoseconds: 2_500_000_000)
                 await MainActor.run { savedToast = nil }
