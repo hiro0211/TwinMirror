@@ -22,6 +22,7 @@ final class ResultViewModel {
     private let saveService: PhotoSaving
     private let analytics: AnalyticsTracking
     private let reviewService: ReviewRequestService
+    private let historyService: HistoryServicing?
 
     init(
         initialRequest: GenerationRequest,
@@ -29,7 +30,8 @@ final class ResultViewModel {
         motherImage: UIImage,
         saveService: PhotoSaving = PhotoSaveService(),
         analytics: AnalyticsTracking = DefaultAnalytics.shared,
-        reviewService: ReviewRequestService = .shared
+        reviewService: ReviewRequestService = .shared,
+        historyService: HistoryServicing? = HistoryService.makeDefault()
     ) {
         self.request = initialRequest
         self.gender = initialRequest.gender
@@ -46,6 +48,7 @@ final class ResultViewModel {
         self.saveService = saveService
         self.analytics = analytics
         self.reviewService = reviewService
+        self.historyService = historyService
     }
 
     func generate() async {
@@ -58,6 +61,7 @@ final class ResultViewModel {
             phase = .done(result)
             let elapsedMs = Int(Date().timeIntervalSince(startedAt) * 1000)
             analytics.track(.generationSucceeded(mode: mode, elapsedMs: elapsedMs, imageCount: result.images.count))
+            persistHistory(result: result)
         } catch {
             phase = .failed(error.localizedDescription)
             analytics.track(.generationFailed(mode: mode, errorKind: String(describing: type(of: error))))
@@ -75,6 +79,51 @@ final class ResultViewModel {
         )
         analytics.track(.resultRegenerated(newGender: newGender.rawValue))
         await generate()
+    }
+
+    private func persistHistory(result: GenerationResult) {
+        guard let historyService else { return }
+        let image = result.bestImage
+        let ratio = result.ratios.indices.contains(result.bestIndex) ? result.ratios[result.bestIndex] : nil
+        let metadata = HistoryMetadata(
+            gender: request.gender.rawValue,
+            age: String(request.age.years),
+            mode: request.mode.rawValue,
+            style: result.usedStyle == .photorealistic ? "photorealistic" : "illustration",
+            ratio: ratio?.rawValue,
+            prompt: nil
+        )
+        let isPremium = PurchaseService.shared.isPremium
+        let imageJPEG = image.jpegData(compressionQuality: 0.9) ?? Data()
+        let thumb = Self.thumbnailJPEG(from: image, maxDimension: 512)
+        guard !imageJPEG.isEmpty, !thumb.isEmpty else { return }
+
+        Task.detached(priority: .utility) { [historyService, metadata, analytics] in
+            do {
+                _ = try await historyService.save(
+                    imageJPEG: imageJPEG,
+                    thumbnailJPEG: thumb,
+                    metadata: metadata,
+                    isPremium: isPremium
+                )
+            } catch {
+                analytics.track(.resultSaveFailed(errorKind: "history_\(type(of: error))"))
+            }
+        }
+    }
+
+    private static func thumbnailJPEG(from image: UIImage, maxDimension: CGFloat) -> Data {
+        let size = image.size
+        guard size.width > 0, size.height > 0 else { return Data() }
+        let scale = min(1.0, maxDimension / max(size.width, size.height))
+        let target = CGSize(width: size.width * scale, height: size.height * scale)
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = 1
+        let renderer = UIGraphicsImageRenderer(size: target, format: format)
+        let resized = renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: target))
+        }
+        return resized.jpegData(compressionQuality: 0.7) ?? Data()
     }
 
     func saveCurrent(at index: Int) async {

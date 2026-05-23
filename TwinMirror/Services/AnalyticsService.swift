@@ -30,6 +30,9 @@ enum AnalyticsEvent: Sendable {
     case onboardingSurveyQuestionAnswered(step: Int, key: String, value: String)
     case onboardingSurveyCompleted(ageBracket: String, source: String, useCase: String)
     case onboardingSurveySkipped(atStep: Int)
+    case historyOpened
+    case historyItemOpened
+    case historyPaywallTapped
 
     var name: String {
         switch self {
@@ -54,12 +57,16 @@ enum AnalyticsEvent: Sendable {
         case .onboardingSurveyQuestionAnswered: return "onboarding_survey_question_answered"
         case .onboardingSurveyCompleted:       return "onboarding_survey_completed"
         case .onboardingSurveySkipped:         return "onboarding_survey_skipped"
+        case .historyOpened:                   return "history_opened"
+        case .historyItemOpened:               return "history_item_opened"
+        case .historyPaywallTapped:            return "history_paywall_tapped"
         }
     }
 
     var parameters: [String: Any] {
         switch self {
-        case .homeViewed, .composeOpened, .reviewPromptShown, .onboardingSurveyShown:
+        case .homeViewed, .composeOpened, .reviewPromptShown, .onboardingSurveyShown,
+             .historyOpened, .historyItemOpened, .historyPaywallTapped:
             return [:]
         case .composeImageSet(let slot, let faceDetected):
             return ["slot": slot, "face_detected": faceDetected ? 1 : 0]

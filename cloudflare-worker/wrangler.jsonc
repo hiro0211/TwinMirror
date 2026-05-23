@@ -6,5 +6,22 @@
   "compatibility_flags": ["nodejs_compat"],
   "observability": {
     "enabled": true
+  },
+  "r2_buckets": [
+    {
+      "binding": "HISTORY_BUCKET",
+      "bucket_name": "twinmirror-history"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "HISTORY_DB",
+      "database_name": "twinmirror-history-db",
+      "database_id": "REPLACE_AFTER_CREATE",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "triggers": {
+    "crons": ["0 3 * * *"]
   }
 }
