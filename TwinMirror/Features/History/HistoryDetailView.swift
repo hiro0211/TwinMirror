@@ -66,16 +66,18 @@ struct HistoryDetailView: View {
                 }
             }
         }
-        .task {
-            if image == nil {
-                let isPremium = await MainActor.run { PurchaseService.shared.isPremium }
-                if let data = try? await service.imageData(
-                    for: item.id,
-                    variant: .original,
-                    isPremium: isPremium
-                ), let ui = UIImage(data: data) {
-                    image = ui
-                }
+        .task(id: item.id) {
+            // sheet(item:) は同じシート位置で View を再利用することがあり、
+            // そのとき @State image は前回タップしたアイテムの値が残る。
+            // id 変更で task を再実行＋明示リセットすることで前回画像の焼き付きを防ぐ。
+            image = nil
+            let isPremium = await MainActor.run { PurchaseService.shared.isPremium }
+            if let data = try? await service.imageData(
+                for: item.id,
+                variant: .original,
+                isPremium: isPremium
+            ), let ui = UIImage(data: data) {
+                image = ui
             }
         }
     }

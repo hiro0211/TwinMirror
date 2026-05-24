@@ -48,6 +48,7 @@ struct HistoryView: View {
                         }
                     }
                 )
+                .id(item.id)
                 .presentationDragIndicator(.visible)
             }
             .sheet(isPresented: $showPaywall) {
@@ -134,16 +135,17 @@ private struct HistoryCell: View {
         .aspectRatio(3.0 / 4.0, contentMode: .fit)
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .matchedTransitionSource(id: item.id, in: namespace)
-        .task {
-            if image == nil {
-                let isPremium = await MainActor.run { PurchaseService.shared.isPremium }
-                if let data = try? await service.imageData(
-                    for: item.id,
-                    variant: .thumb,
-                    isPremium: isPremium
-                ), let ui = UIImage(data: data) {
-                    image = ui
-                }
+        .task(id: item.id) {
+            // LazyVGrid の cell 再利用で item が差し替わった際、
+            // 前 item のサムネが残らないように明示リセット＋id-scoped task で再ロード。
+            image = nil
+            let isPremium = await MainActor.run { PurchaseService.shared.isPremium }
+            if let data = try? await service.imageData(
+                for: item.id,
+                variant: .thumb,
+                isPremium: isPremium
+            ), let ui = UIImage(data: data) {
+                image = ui
             }
         }
     }
