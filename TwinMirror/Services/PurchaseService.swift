@@ -10,7 +10,7 @@ import RevenueCat
 ///   `Purchases.configure` を 1 回だけ実行する。
 /// - `Purchases.shared.customerInfoStream` を購読し、最新の `CustomerInfo` を
 ///   `@MainActor` 上で保持する。
-/// - `isPremium` はエンタイトルメント "TwinMirror Premium" のアクティブ状態を返す。
+/// - `isPremium` はエンタイトルメント "premium" のアクティブ状態を返す。
 /// - `UsageLimiter` はこのプロパティをクロージャ経由で参照し、毎回 fresh な値を読む。
 @MainActor
 @Observable
@@ -18,7 +18,7 @@ final class PurchaseService {
 
     /// RevenueCat ダッシュボードの Entitlement 識別子と完全一致させる必要がある。
     /// このリテラルは契約の一部であり、テストでも検証している。
-    nonisolated static let premiumEntitlementID = "TwinMirror Premium"
+    nonisolated static let premiumEntitlementID = "premium"
 
     static let shared = PurchaseService()
 
@@ -81,6 +81,30 @@ final class PurchaseService {
     nonisolated static func isPremium(in customerInfo: Any?) -> Bool { false }
     #endif
 
+    #if DEBUG
+    /// DEBUG ビルド専用。entitlement の生状態を文字列で返す。
+    /// 課金後に isPremium が反映されない問題の切り分けに使う。
+    var debugEntitlementSummary: String {
+        let expected = Self.premiumEntitlementID
+        #if canImport(RevenueCat)
+        guard let info = customerInfo else {
+            return "expected: \"\(expected)\" / isPremium: false / customerInfo: nil (未到達)"
+        }
+        let active = info.entitlements.active.keys.sorted().joined(separator: ", ")
+        let all = info.entitlements.all.keys.sorted().joined(separator: ", ")
+        return """
+        expected: "\(expected)"
+        isPremium: \(isPremium)
+        active: [\(active.isEmpty ? "(none)" : active)]
+        all: [\(all.isEmpty ? "(none)" : all)]
+        userId: \(info.originalAppUserId)
+        """
+        #else
+        return "expected: \"\(expected)\" / isPremium: false / RevenueCat SDK 未リンク"
+        #endif
+    }
+    #endif
+
     // MARK: - Purchases
 
     #if canImport(RevenueCat)
@@ -120,6 +144,11 @@ final class PurchaseService {
                 guard let self else { return }
                 await MainActor.run {
                     self.customerInfo = info
+                    #if DEBUG
+                    let active = info.entitlements.active.keys.sorted().joined(separator: ",")
+                    let expected = Self.premiumEntitlementID
+                    Self.log.info("CustomerInfo updated. active=[\(active, privacy: .public)] expected=\"\(expected, privacy: .public)\" isPremium=\(self.isPremium)")
+                    #endif
                 }
             }
         }

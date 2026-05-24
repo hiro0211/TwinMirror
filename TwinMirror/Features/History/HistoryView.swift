@@ -5,6 +5,7 @@ struct HistoryView: View {
     @State private var selectedItem: HistoryItem?
     @State private var showPaywall = false
     @State private var didAppearOnce = false
+    @State private var purchaseService = PurchaseService.shared
     @Namespace private var heroNamespace
 
     private let analytics: AnalyticsTracking
@@ -63,6 +64,11 @@ struct HistoryView: View {
             }
             .refreshable {
                 await viewModel.load()
+            }
+            .onChange(of: purchaseService.isPremium) { _, _ in
+                // 課金 / 復元の結果として entitlement が active になったら
+                // freeLimitReached の前回キャッシュ (= true) を捨てて再取得する。
+                Task { await viewModel.load() }
             }
         }
     }

@@ -6,7 +6,7 @@ final class PurchaseServiceTests: XCTestCase {
     func test_premiumEntitlementID_matchesDashboardIdentifier() {
         // RevenueCat ダッシュボードで設定する Entitlement 識別子と完全一致させる必要があるため、
         // ハードコード値を契約として検証する。
-        XCTAssertEqual(PurchaseService.premiumEntitlementID, "TwinMirror Premium")
+        XCTAssertEqual(PurchaseService.premiumEntitlementID, "premium")
     }
 
     func test_isPremium_isFalse_whenCustomerInfoIsNil() {
@@ -28,4 +28,17 @@ final class PurchaseServiceTests: XCTestCase {
         PurchaseService.shared.bootstrap()
         PurchaseService.shared.bootstrap()
     }
+
+    #if DEBUG
+    @MainActor
+    func test_debugEntitlementSummary_includesExpectedID_andIsPremiumFlag() {
+        // 課金後に isPremium が反映されない問題の切り分け用デバッグ文字列。
+        // 期待 entitlement ID と isPremium 状態が常に含まれていることを保証する。
+        let summary = PurchaseService.shared.debugEntitlementSummary
+        XCTAssertTrue(summary.contains("premium"),
+                      "Expected entitlement ID must appear in debug summary: \(summary)")
+        XCTAssertTrue(summary.contains("isPremium"),
+                      "isPremium flag must appear in debug summary: \(summary)")
+    }
+    #endif
 }

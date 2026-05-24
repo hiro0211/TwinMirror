@@ -47,6 +47,17 @@ struct ResultView: View {
         )) {
             ReviewRequestSheet(service: reviewService)
         }
+        #if DEBUG
+        .overlay(alignment: .topLeading) {
+            Text(PurchaseService.shared.debugEntitlementSummary)
+                .font(.system(size: 9, design: .monospaced))
+                .foregroundStyle(.white)
+                .padding(6)
+                .background(.black.opacity(0.6), in: .rect(cornerRadius: 4))
+                .padding(8)
+                .allowsHitTesting(false)
+        }
+        #endif
     }
 
     @ViewBuilder

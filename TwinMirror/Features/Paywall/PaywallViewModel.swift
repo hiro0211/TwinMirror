@@ -1,4 +1,5 @@
 import Foundation
+import os
 #if canImport(RevenueCat)
 import RevenueCat
 #endif
@@ -14,6 +15,8 @@ final class PaywallViewModel {
     var errorMessage: String?
 
     private let analytics: AnalyticsTracking
+
+    private static let log = Logger(subsystem: "app.twinmirror.ios", category: "Paywall")
 
     init(analytics: AnalyticsTracking = DefaultAnalytics.shared) {
         self.analytics = analytics
@@ -33,6 +36,10 @@ final class PaywallViewModel {
             if !result.userCancelled {
                 analytics.track(.purchaseCompleted(packageID: package.identifier))
             }
+            #if DEBUG
+            let active = result.customerInfo.entitlements.active.keys.sorted().joined(separator: ",")
+            Self.log.info("Purchase completed. userCancelled=\(result.userCancelled) active=[\(active, privacy: .public)] isPremium=\(PurchaseService.shared.isPremium)")
+            #endif
         } catch {
             if let rcError = error as? RevenueCat.ErrorCode, rcError == .purchaseCancelledError {
                 return

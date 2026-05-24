@@ -833,3 +833,61 @@ stash には 14 modified + 11 untracked が保存されている (`git stash sho
 - `ResultViewModel.orchestrator` を `any GenerationOrchestrating` 化したことで初めて `generate()` の単体テストが書けるようになった（従来は AppConfig.workerURL に依存して必ず空 attempts で fail）
 - ウォーターマーク文言・配置・色はすべて `TwinMirrorWatermark` のプロパティで上書き可能（将来のロゴアイコン追加余地あり）
 - SourceKit が "No such module 'UIKit'" を出すことがあるが、`xcodegen generate` 後の DerivedData インデックス再構築が遅れているだけで実害なし
+
+## 2026-05-24（午後・テスト購入で entitlement が active にならない問題の診断機能追加）
+
+### 問題の状況
+- ユーザーが sandbox 環境でテスト購入したところ、購入後も以下 2 つが premium 化されなかった：
+  1. **新規生成画像にウォーターマークが付いたまま** （ResultViewModel.swift:70）
+  2. **履歴タブの「Premium で無制限」モーダル（PremiumLockCard）が消えない** （HistoryView.swift:100-106）
+- 両方とも `PurchaseService.shared.isPremium` を参照しているため、`isPremium == false` のまま = **RevenueCat entitlement が active になっていない**ことが確定
+- ユーザー仮説「RevenueCat がテストモードだから」は誤り：`appl_...` API キー（TwinMirror.xcconfig:13）は production キーで sandbox/production を自動判定する（[公式 sandbox docs](https://www.revenuecat.com/docs/test-and-launch/sandbox)）
+
+### 作業内容（診断機能の追加、TDD で 1 件追加）
+- `PurchaseService.debugEntitlementSummary`（#if DEBUG）追加：期待 entitlement ID、isPremium、active/all entitlements、originalAppUserId を文字列化
+- `PurchaseService.startCustomerInfoStream()` に DEBUG ログを追加：ストリーム更新ごとに entitlement 状態を `os_log` 出力
+- `PaywallViewModel.purchase()` 成功時に DEBUG ログ追加：購入直後の active entitlements / isPremium を出力
+- `ResultView` 左上に DEBUG オーバーレイ追加：`PurchaseService.shared.debugEntitlementSummary` を黒半透明背景で表示
+- `HistoryView` に `.onChange(of: purchaseService.isPremium)` 追加：購入後に履歴を自動再読込（freeLimitReached キャッシュ刷新）
+
+### 検証結果
+- `xcodebuild test -scheme TwinMirror -destination 'platform=iOS Simulator,name=iPhone 17'`: **163 tests, 0 failures**
+- 新規テスト: `test_debugEntitlementSummary_includesExpectedID_andIsPremiumFlag`（DEBUG ガード内）
+
+### 変更したファイル
+- `TwinMirror/Services/PurchaseService.swift` — `debugEntitlementSummary` プロパティ、ストリーム DEBUG ログ
+- `TwinMirror/Features/Result/ResultView.swift` — DEBUG オーバーレイ
+- `TwinMirror/Features/Paywall/PaywallViewModel.swift` — `os` import + 購入成功 DEBUG ログ
+- `TwinMirror/Features/History/HistoryView.swift` — `@State purchaseService` + `onChange(of:)` で `viewModel.load()`
+- `TwinMirrorTests/PurchaseServiceTests.swift` — `debugEntitlementSummary` のスモークテスト追加
+
+### 次回やるべきこと（ユーザー手動確認）
+- DEBUG ビルドを実機にインストールし、ResultView 左上のオーバーレイで `isPremium: true/false` と `active: [...]` を目視確認
+- `isPremium: false` のまま購入が完了した場合の切り分け：
+  - `active: [(none)]` → RevenueCat ダッシュボードで "TwinMirror Premium" entitlement が無いか product 未 attach → ダッシュボードで設定
+  - `active: [別名]` → entitlement ID 不一致 → コードかダッシュボードのどちらかを揃える（`PurchaseService.swift:21`、`PurchaseServiceTests.swift:9`）
+  - `customerInfo: nil (未到達)` → SDK 初期化失敗
+- RevenueCat ダッシュボード（app.revenuecat.com）の "View Sandbox Data" トグル ON で Customers タブにテスト購入が記録されているか確認
+- App Store Connect 側で In-App Purchase product が "Ready to Submit" / "Approved" ステータスか確認（"Missing Metadata" だと sandbox でも entitlement 付与失敗あり）
+
+### 発見した問題点・注意事項
+- ウォーターマークは **生成時に画像に焼き込まれる**（`ResultViewModel.swift:70`）ため、購入前に生成された画像は永久に消えない。今回の問題は「新規生成画像にも付いた」ので焼き込み済みではなく `isPremium == false` 起因
+- `HistoryView.task` は `didAppearOnce` で初回のみ実行 → 購入後に History タブに戻っても `freeLimitReached` キャッシュが残る。`onChange(of: isPremium)` で解決
+- `PurchaseService` は `@Observable` なので `PurchaseService.shared.isPremium` 変化が SwiftUI に伝播する。`@State` で保持すれば onChange で観測可能
+- `Purchases.shared.customerInfoStream` は購入成功時に即時 emit するため、ストリーム更新 → `customerInfo` 反映 → `isPremium` 再評価 → SwiftUI 再描画 → `onChange` 発火、の流れが成立する
+- 計画ファイル: `/Users/arimurahiroaki/.claude/plans/twinmirror-revenuecat-claude-in-chrome-imperative-leaf.md`
+
+### 原因確定と修正（同日中に解決）
+- ユーザーから RevenueCat ダッシュボードのスクリーンショット提供：
+  - Entitlement Identifier: **`premium`**（小文字、スペースなし）
+  - Display Name: "Premium"
+  - Attached products: `com.twinmirror.premium.{monthly,weekly,yearly}`
+- コード側 `premiumEntitlementID = "TwinMirror Premium"` と完全不一致 → `entitlements["TwinMirror Premium"]` が nil → `isActive` false → `isPremium = false`
+- **修正**: コード側を `"premium"` に揃える（ダッシュボードの Display Name はそのまま "Premium" 表示）
+  - `PurchaseService.swift:21` リテラル変更
+  - `PurchaseService.swift:13` ドキュメントコメント追従
+  - `PurchaseServiceTests.swift:9` 契約テスト更新
+  - `PurchaseServiceTests.swift:39` debugEntitlementSummary テスト更新
+- `PaywallView.swift:110` の `Text("TwinMirror Premium")` はユーザー向け表示名なのでそのまま残す
+- `xcodebuild test`: **164 tests, 0 failures**
+- 次回ユーザー検証時に DEBUG オーバーレイで `active: [premium]` / `isPremium: true` が見えるはず
