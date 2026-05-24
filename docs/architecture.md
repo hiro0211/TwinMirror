@@ -69,8 +69,11 @@ SwiftUI MVVM + サービスレイヤー。追加 SDK ゼロ方針で Vision / Ph
 ```mermaid
 flowchart TB
     subgraph UI["🎨 UI Layer (SwiftUI Views)"]
-        Home["HomeView"]
-        Compose["ComposeView"]
+        Root["RootView<br/>(初回起動分岐)"]
+        Welcome["WelcomeView<br/>(初回起動のみ)"]
+        Tab["MainTabView"]
+        Compose["ComposeView<br/>(=ホームタブ)"]
+        History["HistoryView"]
         Result["ResultView"]
         DS["DesignSystem<br/>(GlassButton, AgeRulerPicker,<br/>LoadingMorphView, Theme)"]
     end
@@ -98,7 +101,10 @@ flowchart TB
         Ana["AnalyticsService<br/>(Firebase wrapper)"]
     end
 
-    Home --> Compose
+    Root --> Welcome
+    Root --> Tab
+    Tab --> Compose
+    Tab --> History
     Compose --> ComposeVM
     Compose --> DS
     Result --> ResultVM
@@ -127,7 +133,7 @@ flowchart TB
     classDef vm fill:#fce4ec,stroke:#ad1457,color:#880e4f
     classDef model fill:#fff8e1,stroke:#f57f17,color:#e65100
     classDef svc fill:#e8f5e9,stroke:#2e7d32,color:#1b5e20
-    class Home,Compose,Result,DS ui
+    class Root,Welcome,Tab,Compose,History,Result,DS ui
     class ComposeVM,ResultVM vm
     class GenReq,Blend model
     class Orch,GenAbs,Gemini,Prompt,Pre,Face,Save,Limit,Cfg,Ana svc

@@ -68,29 +68,31 @@ struct HistoryView: View {
 
     private var gridScroll: some View {
         ScrollView {
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 110), spacing: 4)],
-                spacing: 4,
-                pinnedViews: [.sectionHeaders]
-            ) {
-                ForEach(viewModel.sections) { section in
-                    Section {
-                        ForEach(section.items) { item in
-                            HistoryCell(item: item, service: viewModel.service, namespace: heroNamespace)
-                                .onTapGesture {
-                                    selectedItem = item
-                                    analytics.track(.historyItemOpened)
-                                }
-                                .contextMenu {
-                                    Button(role: .destructive) {
-                                        Task { await viewModel.delete(item) }
-                                    } label: {
-                                        Label("削除", systemImage: "trash")
+            VStack(spacing: Theme.Spacing.m) {
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 110), spacing: 4)],
+                    spacing: 4,
+                    pinnedViews: [.sectionHeaders]
+                ) {
+                    ForEach(viewModel.sections) { section in
+                        Section {
+                            ForEach(section.items) { item in
+                                HistoryCell(item: item, service: viewModel.service, namespace: heroNamespace)
+                                    .onTapGesture {
+                                        selectedItem = item
+                                        analytics.track(.historyItemOpened)
                                     }
-                                }
+                                    .contextMenu {
+                                        Button(role: .destructive) {
+                                            Task { await viewModel.delete(item) }
+                                        } label: {
+                                            Label("削除", systemImage: "trash")
+                                        }
+                                    }
+                            }
+                        } header: {
+                            SectionHeader(title: section.title)
                         }
-                    } header: {
-                        SectionHeader(title: section.title)
                     }
                 }
 
@@ -99,8 +101,7 @@ struct HistoryView: View {
                         analytics.track(.historyPaywallTapped)
                         showPaywall = true
                     }
-                    .gridCellColumns(3)
-                    .padding(.top, Theme.Spacing.m)
+                    .padding(.top, Theme.Spacing.s)
                 }
             }
             .padding(.horizontal, Theme.Spacing.s)

@@ -80,10 +80,10 @@ final class GenerationOrchestratorTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(attempts.count, 1)
     }
 
-    func test_defaultAttempts_firstIsNanoBananaPhotoreal() {
+    func test_defaultAttempts_firstIsProImagePhotoreal() {
         let attempts = GenerationOrchestrator.defaultAttempts(workerURL: URL(string: "https://worker.example.com")!, authToken: "tok")
         XCTAssertEqual(attempts.first?.style, .photorealistic,
-                       "1番目は Nano Banana 2 の photorealistic")
+                       "1番目は gemini-3-pro-image-preview の photorealistic (Flash より速いため優先)")
     }
 
     func test_defaultAttempts_lastIsIllustration() {

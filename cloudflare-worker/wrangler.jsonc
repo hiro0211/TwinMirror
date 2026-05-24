@@ -17,7 +17,7 @@
     {
       "binding": "HISTORY_DB",
       "database_name": "twinmirror-history-db",
-      "database_id": "REPLACE_AFTER_CREATE",
+      "database_id": "25a1e539-84ba-49aa-8d65-2ea147325b44",
       "migrations_dir": "migrations"
     }
   ],

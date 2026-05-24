@@ -1,7 +1,11 @@
 import Foundation
 import UIKit
 
-struct GenerationOrchestrator: Sendable {
+protocol GenerationOrchestrating: Sendable {
+    func generate(request: GenerationRequest) async throws -> GenerationResult
+}
+
+struct GenerationOrchestrator: GenerationOrchestrating, Sendable {
     struct Attempt: Sendable {
         let generator: any ImageGenerator
         let style: GenerationStyle
@@ -28,6 +32,7 @@ struct GenerationOrchestrator: Sendable {
 
     static func defaultAttempts(workerURL: URL, authToken: String) -> [Attempt] {
         [
+            Attempt(generator: GeminiImageGenerator(workerURL: workerURL, authToken: authToken, model: .proImage),    style: .photorealistic),
             Attempt(generator: GeminiImageGenerator(workerURL: workerURL, authToken: authToken, model: .nanoBanana2), style: .photorealistic),
             Attempt(generator: GeminiImageGenerator(workerURL: workerURL, authToken: authToken, model: .stable25),    style: .photorealistic),
             Attempt(generator: GeminiImageGenerator(workerURL: workerURL, authToken: authToken, model: .nanoBanana2), style: .illustration),

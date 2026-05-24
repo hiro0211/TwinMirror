@@ -1,63 +1,62 @@
 import SwiftUI
 
-struct HomeView: View {
-    @State private var isComposeShown = false
+struct WelcomeView: View {
     @State private var surveyService = OnboardingSurveyService.shared
     @State private var isSurveyPresented = false
     private let analytics: AnalyticsTracking
+    private let onContinue: () -> Void
 
-    init(analytics: AnalyticsTracking = DefaultAnalytics.shared) {
+    init(
+        analytics: AnalyticsTracking = DefaultAnalytics.shared,
+        onContinue: @escaping () -> Void
+    ) {
         self.analytics = analytics
+        self.onContinue = onContinue
     }
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                Theme.Gradients.background.ignoresSafeArea()
+        ZStack {
+            Theme.Gradients.background.ignoresSafeArea()
 
-                VStack(spacing: Theme.Spacing.l) {
-                    Spacer()
+            VStack(spacing: Theme.Spacing.l) {
+                Spacer()
 
-                    VStack(spacing: Theme.Spacing.s) {
-                        Text("Twin Mirror")
-                            .font(.system(size: 14, weight: .medium, design: .rounded))
-                            .foregroundStyle(Theme.Colors.textSecondary)
-                            .tracking(4)
-
-                        Text("2人の写真で、\n未来の子どもに会う。")
-                            .font(.system(size: 30, weight: .bold, design: .rounded))
-                            .multilineTextAlignment(.center)
-                            .foregroundStyle(Theme.Colors.textPrimary)
-                            .padding(.horizontal, Theme.Spacing.m)
-                    }
-
-                    Text("写真2枚から、AIがあなたとパートナーの\n未来の子どもを描きます。")
-                        .font(.system(size: 14))
+                VStack(spacing: Theme.Spacing.s) {
+                    Text("Twin Mirror")
+                        .font(.system(size: 14, weight: .medium, design: .rounded))
                         .foregroundStyle(Theme.Colors.textSecondary)
+                        .tracking(4)
+
+                    Text("2人の写真で、\n未来の子どもに会う。")
+                        .font(.system(size: 30, weight: .bold, design: .rounded))
                         .multilineTextAlignment(.center)
-                        .lineSpacing(4)
-
-                    Spacer()
-
-                    HeroIllustration()
-                        .frame(height: 180)
-
-                    Spacer()
-
-                    GlassButton(isProminent: true, action: {
-                        isComposeShown = true
-                    }) {
-                        Text("2人の写真で子どもを見る →")
-                    }
-                    .padding(.horizontal, Theme.Spacing.l)
-
-                    LegalLinks()
-                        .padding(.top, Theme.Spacing.s)
-                        .padding(.bottom, Theme.Spacing.m)
+                        .foregroundStyle(Theme.Colors.textPrimary)
+                        .padding(.horizontal, Theme.Spacing.m)
                 }
-            }
-            .navigationDestination(isPresented: $isComposeShown) {
-                ComposeView()
+
+                Text("写真2枚から、AIがあなたとパートナーの\n未来の子どもを描きます。")
+                    .font(.system(size: 14))
+                    .foregroundStyle(Theme.Colors.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(4)
+
+                Spacer()
+
+                HeroIllustration()
+                    .frame(height: 180)
+
+                Spacer()
+
+                GlassButton(isProminent: true, action: {
+                    onContinue()
+                }) {
+                    Text("2人の写真で子どもを見る →")
+                }
+                .padding(.horizontal, Theme.Spacing.l)
+
+                LegalLinks()
+                    .padding(.top, Theme.Spacing.s)
+                    .padding(.bottom, Theme.Spacing.m)
             }
         }
         .onAppear {
@@ -119,5 +118,5 @@ private struct LegalLinks: View {
 }
 
 #Preview {
-    HomeView()
+    WelcomeView(onContinue: {})
 }

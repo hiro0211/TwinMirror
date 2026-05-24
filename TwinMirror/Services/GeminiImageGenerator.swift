@@ -2,7 +2,11 @@ import Foundation
 import UIKit
 
 struct GeminiImageGenerator: ImageGenerator {
+    /// 利用可能な Gemini 画像生成モデル。`proImage` を優先 — 2026 春時点で Google 側のキャパシティ
+    /// 不足により Flash (`nanoBanana2`) の方が Pro より遅いという既知バグがある (公式
+    /// GitHub Issue googleapis/js-genai#1544)。Flash と 2.5 はフォールバック専用。
     enum Model: String {
+        case proImage    = "gemini-3-pro-image-preview"
         case nanoBanana2 = "gemini-3.1-flash-image-preview"
         case stable25    = "gemini-2.5-flash-image"
     }
@@ -12,7 +16,7 @@ struct GeminiImageGenerator: ImageGenerator {
     let model: Model
     let session: URLSession
 
-    init(workerURL: URL, authToken: String, model: Model = .nanoBanana2, session: URLSession = .shared) {
+    init(workerURL: URL, authToken: String, model: Model = .proImage, session: URLSession = .shared) {
         self.workerURL = workerURL
         self.authToken = authToken
         self.model = model

@@ -11,7 +11,9 @@ struct MainTabView: View {
     var body: some View {
         TabView(selection: $selection) {
             Tab("ホーム", systemImage: "sparkles", value: TabValue.home) {
-                HomeView()
+                NavigationStack {
+                    ComposeView()
+                }
             }
             Tab("履歴", systemImage: "photo.stack", value: TabValue.history) {
                 HistoryView()
