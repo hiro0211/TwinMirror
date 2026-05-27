@@ -194,6 +194,40 @@ final class HistoryServiceTests: XCTestCase {
             XCTFail("unexpected error: \(error)")
         }
     }
+
+    // MARK: - deleteAll
+
+    func test_deleteAll_sendsDELETEToCollection() async throws {
+        let captured = CapturedRequest()
+        MockURLProtocol.setHandler { request in
+            captured.set(request)
+            return (HTTPURLResponse(url: request.url!, statusCode: 204, httpVersion: nil, headerFields: nil)!, Data())
+        }
+        let service = makeService()
+        try await service.deleteAll(isPremium: true)
+        let req = try XCTUnwrap(captured.get())
+        XCTAssertEqual(req.httpMethod, "DELETE")
+        XCTAssertEqual(req.url?.path, "/history")
+        XCTAssertNil(req.url?.query)
+        XCTAssertEqual(req.value(forHTTPHeaderField: "X-Auth-Token"), token)
+        XCTAssertEqual(req.value(forHTTPHeaderField: "X-Device-Id"), deviceID)
+        XCTAssertEqual(req.value(forHTTPHeaderField: "X-Is-Premium"), "true")
+    }
+
+    func test_deleteAll_throwsOnNon2xx() async {
+        MockURLProtocol.setHandler { request in
+            return (HTTPURLResponse(url: request.url!, statusCode: 500, httpVersion: nil, headerFields: nil)!, Data())
+        }
+        let service = makeService()
+        do {
+            try await service.deleteAll(isPremium: false)
+            XCTFail("expected throw")
+        } catch HistoryServiceError.requestFailed(let status, _) {
+            XCTAssertEqual(status, 500)
+        } catch {
+            XCTFail("unexpected error: \(error)")
+        }
+    }
 }
 
 // MARK: - helpers

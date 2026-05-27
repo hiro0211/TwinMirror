@@ -84,7 +84,12 @@ struct HistoryView: View {
                     ForEach(viewModel.sections) { section in
                         Section {
                             ForEach(section.items) { item in
-                                HistoryCell(item: item, service: viewModel.service, namespace: heroNamespace)
+                                HistoryCell(
+                                    item: item,
+                                    service: viewModel.service,
+                                    isPremium: purchaseService.isPremium,
+                                    namespace: heroNamespace
+                                )
                                     .onTapGesture {
                                         selectedItem = item
                                         analytics.track(.historyItemOpened)
@@ -122,6 +127,7 @@ struct HistoryView: View {
 private struct HistoryCell: View {
     let item: HistoryItem
     let service: HistoryServicing
+    let isPremium: Bool
     let namespace: Namespace.ID
     @State private var image: UIImage?
 
@@ -140,6 +146,7 @@ private struct HistoryCell: View {
         .frame(maxWidth: .infinity)
         .aspectRatio(3.0 / 4.0, contentMode: .fit)
         .clipShape(RoundedRectangle(cornerRadius: 14))
+        .watermarkedIfNeeded(isPremium: isPremium)
         .matchedTransitionSource(id: item.id, in: namespace)
         .task(id: item.id) {
             // LazyVGrid の cell 再利用で item が差し替わった際、
@@ -186,4 +193,5 @@ struct DisabledHistoryService: HistoryServicing {
         Data()
     }
     func delete(id: String, isPremium: Bool) async throws {}
+    func deleteAll(isPremium: Bool) async throws {}
 }

@@ -9,8 +9,10 @@ struct HistoryDetailView: View {
     @State private var image: UIImage?
     @State private var isSavingToPhotos = false
     @State private var toast: String?
+    @State private var purchaseService = PurchaseService.shared
 
     private let saveService: PhotoSaving = PhotoSaveService()
+    private let watermarker: Watermarking = TwinMirrorWatermark()
 
     var body: some View {
         ZStack {
@@ -22,6 +24,7 @@ struct HistoryDetailView: View {
                         .resizable()
                         .scaledToFit()
                         .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.large))
+                        .watermarkedIfNeeded(isPremium: purchaseService.isPremium)
                         .shadow(color: .black.opacity(0.1), radius: 12, y: 6)
                 } else {
                     RoundedRectangle(cornerRadius: Theme.Radius.large)
@@ -119,8 +122,9 @@ struct HistoryDetailView: View {
         guard let image, !isSavingToPhotos else { return }
         isSavingToPhotos = true
         defer { isSavingToPhotos = false }
+        let imageToSave = purchaseService.isPremium ? image : watermarker.apply(to: image)
         do {
-            try await saveService.save(image)
+            try await saveService.save(imageToSave)
             toast = "写真に保存しました"
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         } catch {

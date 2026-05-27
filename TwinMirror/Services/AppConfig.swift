@@ -33,5 +33,5 @@ enum AppConfig {
 
     /// 満足度が低かったユーザー向けのフィードバック送信先。
     /// App Store のレビューに低評価を残されるより、メールで直接受け取って改善した方が建設的。
-    static let feedbackMailtoURL = URL(string: "mailto:support@twinmirror.app?subject=ツインミラーへのご意見")!
+    static let feedbackMailtoURL = URL(string: "mailto:appsupport0326@gmail.com?subject=ツインミラーへのご意見")!
 }

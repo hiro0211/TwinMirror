@@ -101,13 +101,29 @@ export function createMockD1(): MockD1 {
       rows.push(...survivors);
       return removed;
     }
-    if (lower.startsWith("delete from history")) {
+    if (lower.startsWith("delete from history") && /where\s+id\s*=\s*\?/.test(lower)) {
       // DELETE FROM history WHERE id = ? AND device_id = ?
       const [id, device_id] = args;
       const survivors: D1Row[] = [];
       let removedCount = 0;
       for (const r of rows) {
         if (r.id === id && r.device_id === device_id) {
+          removedCount++;
+        } else {
+          survivors.push(r);
+        }
+      }
+      rows.length = 0;
+      rows.push(...survivors);
+      return Array(removedCount).fill({ deleted: 1 });
+    }
+    if (lower.startsWith("delete from history") && lower.includes("device_id = ?")) {
+      // DELETE FROM history WHERE device_id = ?
+      const [device_id] = args;
+      const survivors: D1Row[] = [];
+      let removedCount = 0;
+      for (const r of rows) {
+        if (r.device_id === device_id) {
           removedCount++;
         } else {
           survivors.push(r);

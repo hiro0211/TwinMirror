@@ -22,6 +22,7 @@ protocol HistoryServicing: Sendable {
     func list(isPremium: Bool) async throws -> HistoryListResponse
     func imageData(for id: String, variant: HistoryImageVariant, isPremium: Bool) async throws -> Data
     func delete(id: String, isPremium: Bool) async throws
+    func deleteAll(isPremium: Bool) async throws
 }
 
 struct HistoryService: HistoryServicing {
@@ -76,6 +77,11 @@ struct HistoryService: HistoryServicing {
 
     func delete(id: String, isPremium: Bool) async throws {
         let request = makeRequest(path: "history/\(id)", method: "DELETE", isPremium: isPremium)
+        _ = try await send(request)
+    }
+
+    func deleteAll(isPremium: Bool) async throws {
+        let request = makeRequest(path: "history", method: "DELETE", isPremium: isPremium)
         _ = try await send(request)
     }
 

@@ -201,6 +201,35 @@ export async function deleteHistory(
   return new Response(null, { status: 204 });
 }
 
+export async function deleteAllHistory(
+  request: Request,
+  env: HistoryEnv,
+): Promise<Response> {
+  const deviceId = extractDeviceId(request);
+  if (!deviceId) return jsonError(400, "invalid_device_id");
+
+  const result = await env.HISTORY_DB.prepare(
+    `SELECT r2_key, thumb_r2_key FROM history WHERE device_id = ?`,
+  )
+    .bind(deviceId)
+    .all<{ r2_key: string; thumb_r2_key: string }>();
+
+  const keys: string[] = [];
+  for (const row of result.results ?? []) {
+    keys.push(row.r2_key, row.thumb_r2_key);
+  }
+  if (keys.length > 0) {
+    await env.HISTORY_BUCKET.delete(keys);
+  }
+  await env.HISTORY_DB.prepare(
+    `DELETE FROM history WHERE device_id = ?`,
+  )
+    .bind(deviceId)
+    .run();
+
+  return new Response(null, { status: 204 });
+}
+
 export async function cleanupExpiredHistory(env: HistoryEnv): Promise<void> {
   const now = Date.now();
   const expired = await env.HISTORY_DB.prepare(

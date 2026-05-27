@@ -4,6 +4,7 @@ struct ResultView: View {
     @State private var viewModel: ResultViewModel
     @State private var selectedIndex: Int = 0
     @State private var reviewService = ReviewRequestService.shared
+    @State private var purchaseService = PurchaseService.shared
 
     init(initialRequest: GenerationRequest, fatherImage: UIImage, motherImage: UIImage) {
         _viewModel = State(initialValue: ResultViewModel(
@@ -47,17 +48,6 @@ struct ResultView: View {
         )) {
             ReviewRequestSheet(service: reviewService)
         }
-        #if DEBUG
-        .overlay(alignment: .topLeading) {
-            Text(PurchaseService.shared.debugEntitlementSummary)
-                .font(.system(size: 9, design: .monospaced))
-                .foregroundStyle(.white)
-                .padding(6)
-                .background(.black.opacity(0.6), in: .rect(cornerRadius: 4))
-                .padding(8)
-                .allowsHitTesting(false)
-        }
-        #endif
     }
 
     @ViewBuilder
@@ -72,6 +62,13 @@ struct ResultView: View {
                             .resizable()
                             .scaledToFit()
                             .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.large))
+                            .watermarkedIfNeeded(isPremium: purchaseService.isPremium)
+                            .overlay(alignment: .topTrailing) {
+                                if result.images.count > 1 {
+                                    PageCounterChip(current: index + 1, total: result.images.count)
+                                        .padding(Theme.Spacing.s)
+                                }
+                            }
                         if result.ratios.indices.contains(index), result.ratios.count > 1 {
                             BlendRatioBadge(
                                 ratio: result.ratios[index],
@@ -84,7 +81,7 @@ struct ResultView: View {
                     .tag(index)
                 }
             }
-            .tabViewStyle(.page(indexDisplayMode: .always))
+            .tabViewStyle(.page(indexDisplayMode: .never))
             .frame(maxHeight: 560)
             .onAppear {
                 if !result.images.indices.contains(selectedIndex) {
@@ -93,6 +90,15 @@ struct ResultView: View {
             }
             .onChange(of: result.images.count) { _, _ in
                 selectedIndex = result.bestIndex
+            }
+
+            if result.images.count > 1 {
+                PageDotsIndicator(currentIndex: selectedIndex, total: result.images.count) { newIndex in
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                        selectedIndex = newIndex
+                    }
+                }
+                .padding(.top, -Theme.Spacing.s)
             }
 
             if result.usedStyle == .illustration {
@@ -153,6 +159,49 @@ struct ResultView: View {
             .padding(.horizontal, Theme.Spacing.l)
         }
         .padding()
+    }
+}
+
+private struct PageCounterChip: View {
+    let current: Int
+    let total: Int
+
+    var body: some View {
+        Text("\(current) / \(total)")
+            .font(.system(size: 12, weight: .bold, design: .rounded))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(.black.opacity(0.45), in: .capsule)
+            .accessibilityLabel("\(total)枚中\(current)枚目")
+    }
+}
+
+private struct PageDotsIndicator: View {
+    let currentIndex: Int
+    let total: Int
+    let onSelect: (Int) -> Void
+
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach(0..<total, id: \.self) { index in
+                Capsule()
+                    .fill(index == currentIndex ? Theme.Colors.primaryDeep : Color.black.opacity(0.18))
+                    .frame(width: index == currentIndex ? 22 : 7, height: 7)
+                    .animation(.spring(response: 0.35, dampingFraction: 0.75), value: currentIndex)
+                    .contentShape(Rectangle())
+                    .onTapGesture { onSelect(index) }
+                    .accessibilityLabel("\(index + 1)枚目")
+                    .accessibilityAddTraits(index == currentIndex ? .isSelected : [])
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(.white.opacity(0.55), in: .capsule)
+        .overlay(
+            Capsule().stroke(Color.black.opacity(0.05), lineWidth: 0.5)
+        )
+        .accessibilityElement(children: .contain)
     }
 }
 

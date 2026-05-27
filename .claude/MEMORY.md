@@ -891,3 +891,77 @@ stash には 14 modified + 11 untracked が保存されている (`git stash sho
 - `PaywallView.swift:110` の `Text("TwinMirror Premium")` はユーザー向け表示名なのでそのまま残す
 - `xcodebuild test`: **164 tests, 0 failures**
 - 次回ユーザー検証時に DEBUG オーバーレイで `active: [premium]` / `isPremium: true` が見えるはず
+
+## 2026-05-27 (設定タブ追加)
+
+### 作業内容
+履歴の右に「設定」タブを新設し、以下を集約：
+- Premium: ステータス表示・Paywall導線・購入を復元・サブスクリプション管理
+- 困ったとき: FAQ（インライン）・お問い合わせメール
+- アプリを応援: レビューを書く・アンケート再表示
+- 法的事項: プライバシーポリシー・利用規約
+- データ管理: 履歴の一括削除（確認ダイアログ → Worker `DELETE /history`）
+- アプリ情報: バージョン表示
+
+### 主要変更ファイル
+- 新規: `TwinMirror/Features/Settings/SettingsView.swift`, `SettingsViewModel.swift`, `FAQView.swift`, `FAQContent.swift`
+- 修正: `TwinMirror/Features/Root/MainTabView.swift` — `.settings` タブ追加
+- 修正: `TwinMirror/Services/AppConfig.swift` — `feedbackMailtoURL` を `appsupport0326@gmail.com` に統一（旧 `support@twinmirror.app` を完全置換）
+- 修正: `TwinMirror/Services/HistoryService.swift` — `deleteAll(isPremium:)` を `HistoryServicing` プロトコルと実装に追加
+- Worker: `cloudflare-worker/src/history.ts` に `deleteAllHistory` 関数追加
+- Worker: `cloudflare-worker/src/index.ts` に `DELETE /history` ルート追加（item ID なしでバルク削除）
+- Worker テスト用 Mock: `cloudflare-worker/test/helpers/mocks.ts` — `DELETE FROM history WHERE device_id = ?` パターンを追加（`/where\s+id\s*=\s*\?/` で per-id と区別）
+
+### テスト追加
+- `TwinMirrorTests/SettingsViewModelTests.swift` — 5 件（成功・失敗・サービス未設定・isPremium 伝達・バージョン表示）
+- `TwinMirrorTests/HistoryServiceTests.swift` — `deleteAll` テスト 2 件
+- `cloudflare-worker/test/history.test.ts` — `DELETE /history (bulk)` テスト 5 件
+
+### 既存スタブへの追加（プロトコル拡張に伴う必須実装）
+- `StubHistoryService` (HistoryViewModelTests.swift:154)
+- `SpyHistoryService` (ResultViewModelTests.swift)
+- `DisabledHistoryService` (HistoryView.swift:185)
+すべてに `func deleteAll(isPremium: Bool) async throws {}` を追加。
+
+### テスト結果
+- iOS: **181 tests, 0 failures**（前回 164 → +17）
+- Worker: **36 tests, 0 failures**（前回 31 → +5）
+
+### 設計判断
+- `SettingsViewModel.isPremiumProvider` のデフォルト値は `{ MainActor.assumeIsolated { PurchaseService.shared.isPremium } }` ─ `HistoryView` と同じパターン（`@Sendable` クロージャから main-actor プロパティを読むため）
+- `SettingsView.supportMailtoURL` は AppConfig を経由しないハードコード URL。設定タブ独自の件名「ツインミラー お問い合わせ」を付けるため。アドレスは AppConfig と同一のため運用上は一致
+- FAQ は `DisclosureGroup` ではなく自作の `Button + Image(chevron)` 行で実装。Theme.Colors.textPrimary をきれいに当てるため
+- 履歴一括削除は確認ダイアログ → 成功時に別アラートで完了通知。`SettingsViewModel.didClearAll` フラグで View からトリガ
+- Worker のバルク削除は SELECT で R2 キー一覧を取得 → R2 から一括削除 → D1 から削除、の 3 ステップ。`cleanupExpiredHistory` と同じパターン
+
+### 注意事項・残課題
+- 一括削除後、HistoryView 側のキャッシュは無効化されない。ユーザーが履歴タブに移動すると再 fetch で更新される（pull-to-refresh または `.task` で再 list）が、メモリに残った viewModel.items は古い可能性がある。次回必要なら NotificationCenter なり ObservableObject 経由で連動させる
+- FAQ コンテンツは仮テキスト。`FAQContent.items` を編集すれば本番文言に差し替え可能
+- アンケート再表示は既存 `OnboardingSurveyView` をそのまま再利用。`OnboardingSurveyService.shared.markCompleted` が呼ばれた状態でも UI 上は再表示・再回答できる
+
+---
+
+## 2026-05-27 — App Store 英語版メタデータ作成
+
+### 作業内容
+- プライマリ言語を英語化する方針に伴い、`AppStore_Metadata_EN.md` を新規作成（日本語版 `AppStore_提出メタデータ.md` は不変）。
+- natural-japanese と同じ思想で natural-English を適用（"this app allows you to..." 型の翻訳調を排除、能動態、短文、em-dash 活用）。
+- ASO リサーチ済み: Future Baby Generator / Babify / Babyface など競合の命名・コピーパターンに沿った語彙を採用。
+
+### 確定済みメタデータ
+- App Name: `TwinMirror - Future Baby AI` (27/30)
+- Subtitle: `Future child from two photos` (28/30) — 当初案 `See your future child from 2 photos` は 35字オーバーで差し替え
+- Promo: $4.99/week 表記、"Launch sale on now" 文言入り (166/170)
+- Keywords: `predictor,couple,parents,kids,family,genetics,morph,newborn,toddler,siblings,partners,offspring` (95/100)
+- Description: ~2,588字 / Release Notes: 433字
+- Category: Entertainment（Primary） / Photo & Video（Secondary）
+- Age: 12+
+
+### 次回やるべきこと・残課題
+- App Store Connect への手動入力はユーザー作業。`AppStore_Metadata_EN.md` をコピペで投入できる粒度で完成済み。
+- 日本ロケール (ja-JP) は引き続き `AppStore_提出メタデータ.md` を参照。プライマリ切り替えに伴うローカライズフォールバック挙動の確認は未実施。
+- USD 価格 $4.99/14.99/59.99 は提案値。実際の App Store Connect の Pricing Tier と一致するか要確認。
+- 価格をローカライズに依存させたい場合は Promotional Text の価格表記を削除する案も保留中（プラン中で確認済み、今回は表記入りで採用）。
+
+### 変更ファイル
+- 新規: `/Users/arimurahiroaki/TwinMirror/AppStore_Metadata_EN.md`

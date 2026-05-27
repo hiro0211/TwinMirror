@@ -291,6 +291,108 @@ describe("history endpoints", () => {
     });
   });
 
+  describe("DELETE /history (bulk)", () => {
+    it("removes all items for the requesting device", async () => {
+      await seedItems(env, 3, DEVICE_A);
+
+      const del = await worker.fetch(
+        new Request(`https://w/history`, {
+          method: "DELETE",
+          headers: { "X-Auth-Token": AUTH, "X-Device-Id": DEVICE_A },
+        }),
+        env,
+      );
+      expect(del.status).toBe(204);
+
+      const list = await listHistory(env, "", {
+        "X-Auth-Token": AUTH,
+        "X-Device-Id": DEVICE_A,
+        "X-Is-Premium": "true",
+      });
+      const body = (await list.json()) as { items: unknown[]; totalCount: number };
+      expect(body.items).toEqual([]);
+      expect(body.totalCount).toBe(0);
+    });
+
+    it("does not touch another device's items", async () => {
+      await seedItems(env, 2, DEVICE_A);
+      const otherIds = await seedItems(env, 2, DEVICE_B);
+
+      const del = await worker.fetch(
+        new Request(`https://w/history`, {
+          method: "DELETE",
+          headers: { "X-Auth-Token": AUTH, "X-Device-Id": DEVICE_A },
+        }),
+        env,
+      );
+      expect(del.status).toBe(204);
+
+      const list = await listHistory(env, "", {
+        "X-Auth-Token": AUTH,
+        "X-Device-Id": DEVICE_B,
+        "X-Is-Premium": "true",
+      });
+      const body = (await list.json()) as { items: { id: string }[] };
+      expect(body.items.map((i) => i.id).sort()).toEqual([...otherIds].sort());
+    });
+
+    it("returns 204 even when there is nothing to delete", async () => {
+      const del = await worker.fetch(
+        new Request(`https://w/history`, {
+          method: "DELETE",
+          headers: { "X-Auth-Token": AUTH, "X-Device-Id": DEVICE_A },
+        }),
+        env,
+      );
+      expect(del.status).toBe(204);
+    });
+
+    it("returns 401 without X-Auth-Token", async () => {
+      const del = await worker.fetch(
+        new Request(`https://w/history`, {
+          method: "DELETE",
+          headers: { "X-Device-Id": DEVICE_A },
+        }),
+        env,
+      );
+      expect(del.status).toBe(401);
+    });
+
+    it("returns 400 without X-Device-Id", async () => {
+      const del = await worker.fetch(
+        new Request(`https://w/history`, {
+          method: "DELETE",
+          headers: { "X-Auth-Token": AUTH },
+        }),
+        env,
+      );
+      expect(del.status).toBe(400);
+    });
+
+    it("also removes the R2 objects belonging to the device", async () => {
+      const ids = await seedItems(env, 2, DEVICE_A);
+
+      await worker.fetch(
+        new Request(`https://w/history`, {
+          method: "DELETE",
+          headers: { "X-Auth-Token": AUTH, "X-Device-Id": DEVICE_A },
+        }),
+        env,
+      );
+
+      for (const id of ids) {
+        const img = await worker.fetch(
+          new Request(`https://w/history/${id}/image`, {
+            method: "GET",
+            headers: { "X-Auth-Token": AUTH, "X-Device-Id": DEVICE_A },
+          }),
+          env,
+        );
+        expect(img.status).toBe(404);
+      }
+    });
+  });
+
   describe("scheduled() — TTL cleanup", () => {
     it("removes only items past their expires_at", async () => {
       // seed two; manually mutate expires_at so one is expired

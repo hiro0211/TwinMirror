@@ -151,4 +151,5 @@ private final class StubHistoryService: HistoryServicing, @unchecked Sendable {
         lastDeletedID = id
         if let deleteError { throw deleteError }
     }
+    func deleteAll(isPremium: Bool) async throws {}
 }

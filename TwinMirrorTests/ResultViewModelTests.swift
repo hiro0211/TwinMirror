@@ -75,6 +75,8 @@ private actor SpyHistoryService: HistoryServicing {
 
     func delete(id: String, isPremium: Bool) async throws {}
 
+    func deleteAll(isPremium: Bool) async throws {}
+
     func setFailureSequence(_ seq: [Error?]) { failureSequence = seq }
 }
 
@@ -101,11 +103,14 @@ final class ResultViewModelTests: XCTestCase {
     }
 
     private func makeViewModel(spy: SpyPhotoSaver) -> ResultViewModel {
+        // index 検証系テスト用。watermark 焼き込みで accessibilityIdentifier が
+        // 失われないよう、入力をそのまま返す passthrough watermarker を渡す。
         ResultViewModel(
             initialRequest: anyRequest(),
             fatherImage: pixelImage(0),
             motherImage: pixelImage(0),
-            saveService: spy
+            saveService: spy,
+            watermarker: SpyWatermarker()
         )
     }
 
@@ -289,9 +294,10 @@ final class ResultViewModelTests: XCTestCase {
         XCTAssertEqual(calls.first?.metadata.ratio, "balanced")
     }
 
-    // MARK: - 無料ユーザー: 生成画像に watermark が焼き込まれる
+    // MARK: - 無料ユーザーでも生成時にはウォーターマークを焼き込まない
+    // （R2 にはクリーンな画像をアップロードし、表示時にのみ overlay で重ねる方針）
 
-    func test_generate_appliesWatermarkToAllImages_whenFreeTier() async {
+    func test_generate_doesNotBakeWatermark_whenFreeTier() async {
         let images = [pixelImage(1), pixelImage(2), pixelImage(3)]
         let stub = StubOrchestrator(result: GenerationResult(
             images: images,
@@ -300,15 +306,14 @@ final class ResultViewModelTests: XCTestCase {
             ratios: [.balanced, .fatherLeaning, .motherLeaning]
         ))
         let spy = SpyWatermarker()
-        let stamped = pixelImage(9)
-        spy.stamped = stamped
+        spy.stamped = pixelImage(9)
 
         let vm = ResultViewModel(
-            initialRequest: premiumRequest(),  // 3 images の生成リクエスト形
+            initialRequest: premiumRequest(),
             fatherImage: pixelImage(0),
             motherImage: pixelImage(0),
             saveService: SpyPhotoSaver(),
-            historyService: nil,  // 履歴ロジックは別テストでカバー済
+            historyService: nil,
             orchestrator: stub,
             watermarker: spy,
             isPremiumProvider: { false }
@@ -316,14 +321,14 @@ final class ResultViewModelTests: XCTestCase {
 
         await vm.generate()
 
-        XCTAssertEqual(spy.callCount, 3, "無料ユーザーは生成された全画像に watermark が焼き込まれる")
+        XCTAssertEqual(spy.callCount, 0, "生成時はプレミアム/無料を問わず焼き込まない（表示時に overlay で対応）")
         guard case .done(let result) = vm.phase else {
             return XCTFail("生成成功なら .done に遷移する")
         }
         XCTAssertEqual(
             result.images.map { $0.accessibilityIdentifier },
-            ["img-9", "img-9", "img-9"],
-            "ViewModel が保持する images は watermark 後のもの（= スパイが返した stamped 画像）"
+            ["img-1", "img-2", "img-3"],
+            "ViewModel が保持する images は orchestrator から受け取ったクリーンな画像そのまま"
         )
     }
 
@@ -363,7 +368,7 @@ final class ResultViewModelTests: XCTestCase {
         )
     }
 
-    // MARK: - watermark 適用後の画像がカメラロール保存にも流れる
+    // MARK: - 写真ライブラリ保存時は無料ユーザーのみ焼き込む
 
     func test_saveCurrent_savesWatermarkedImage_whenFreeTier() async {
         let images = [pixelImage(1)]
@@ -391,9 +396,43 @@ final class ResultViewModelTests: XCTestCase {
         await vm.generate()
         await vm.saveCurrent(at: 0)
 
+        XCTAssertEqual(spy.callCount, 1, "保存時に1回だけ焼き込みが呼ばれる（生成時には呼ばれない）")
         XCTAssertEqual(
             saver.savedImages.first?.accessibilityIdentifier, "img-9",
             "保存される画像は watermark 焼き込み後のもの（元画像 img-1 ではなく）"
+        )
+    }
+
+    func test_saveCurrent_doesNotApplyWatermark_whenPremium() async {
+        let images = [pixelImage(1)]
+        let stub = StubOrchestrator(result: GenerationResult(
+            images: images,
+            bestIndex: 0,
+            usedStyle: .photorealistic,
+            ratios: [.balanced]
+        ))
+        let spy = SpyWatermarker()
+        spy.stamped = pixelImage(9)
+        let saver = SpyPhotoSaver()
+
+        let vm = ResultViewModel(
+            initialRequest: anyRequest(),
+            fatherImage: pixelImage(0),
+            motherImage: pixelImage(0),
+            saveService: saver,
+            historyService: nil,
+            orchestrator: stub,
+            watermarker: spy,
+            isPremiumProvider: { true }
+        )
+
+        await vm.generate()
+        await vm.saveCurrent(at: 0)
+
+        XCTAssertEqual(spy.callCount, 0, "プレミアムは保存時も焼き込まない")
+        XCTAssertEqual(
+            saver.savedImages.first?.accessibilityIdentifier, "img-1",
+            "プレミアム時はクリーンな元画像がそのまま保存される"
         )
     }
 

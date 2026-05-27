@@ -4,6 +4,7 @@ struct MainTabView: View {
     enum TabValue: Hashable {
         case home
         case history
+        case settings
     }
 
     @State private var selection: TabValue = .home
@@ -17,6 +18,9 @@ struct MainTabView: View {
             }
             Tab("履歴", systemImage: "photo.stack", value: TabValue.history) {
                 HistoryView()
+            }
+            Tab("設定", systemImage: "gearshape", value: TabValue.settings) {
+                SettingsView()
             }
         }
     }

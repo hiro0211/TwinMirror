@@ -66,8 +66,7 @@ final class ResultViewModel {
         let startedAt = Date()
         analytics.track(.generationStarted(mode: mode))
         do {
-            let raw = try await orchestrator.generate(request: request)
-            let result = isPremiumProvider() ? raw : applyWatermark(to: raw)
+            let result = try await orchestrator.generate(request: request)
             phase = .done(result)
             let elapsedMs = Int(Date().timeIntervalSince(startedAt) * 1000)
             analytics.track(.generationSucceeded(mode: mode, elapsedMs: elapsedMs, imageCount: result.images.count))
@@ -153,17 +152,6 @@ final class ResultViewModel {
         }
     }
 
-    /// 無料ユーザー向けの watermark 焼き込み。全画像経路（表示・保存・履歴）で
-    /// 同じインスタンスを使うため、この `GenerationResult` を以降そのまま使えば一貫する。
-    private func applyWatermark(to result: GenerationResult) -> GenerationResult {
-        GenerationResult(
-            images: result.images.map { watermarker.apply(to: $0) },
-            bestIndex: result.bestIndex,
-            usedStyle: result.usedStyle,
-            ratios: result.ratios
-        )
-    }
-
     private static func thumbnailJPEG(from image: UIImage, maxDimension: CGFloat) -> Data {
         let size = image.size
         guard size.width > 0, size.height > 0 else { return Data() }
@@ -181,8 +169,10 @@ final class ResultViewModel {
     func saveCurrent(at index: Int) async {
         guard case .done(let result) = phase else { return }
         guard result.images.indices.contains(index) else { return }
+        let raw = result.images[index]
+        let imageToSave = isPremiumProvider() ? raw : watermarker.apply(to: raw)
         do {
-            try await saveService.save(result.images[index])
+            try await saveService.save(imageToSave)
             savedToast = "保存しました"
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
             analytics.track(.resultSaved(index: index))
