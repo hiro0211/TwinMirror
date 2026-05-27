@@ -46,7 +46,7 @@ targets:
       path: TwinMirror/Info.plist
       properties:
         CFBundleDisplayName: ツインミラー
-        CFBundleShortVersionString: "0.1.0"
+        CFBundleShortVersionString: "1.0"
         CFBundleVersion: "1"
         LSRequiresIPhoneOS: true
         UILaunchScreen:

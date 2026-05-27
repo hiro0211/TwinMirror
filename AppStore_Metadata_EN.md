@@ -41,9 +41,7 @@ From two photos, AI sketches your future child—right on your phone.
 A spark of Mom, a hint of Dad, blended into one smile.
 A playful glimpse of tomorrow for couples, partners, and families.
 
-────────────────
 ■ What you can do
-────────────────
 
 ▶ Two photos. Instant results.
 Pick a face for each parent, choose an age (0–20) and gender, then tap Generate. Your future child appears in seconds.
@@ -60,45 +58,39 @@ Past generations are kept inside the app. Premium adds cloud sync, so your histo
 ▶ Built for TikTok and sharing
 One tap shares your favorite shot. Perfect for couple challenges and "we tried it" videos with friends.
 
-────────────────
 ■ Made for moments like
-────────────────
+
 • Late-night curiosity with your partner
 • Pre-baby fun for expecting couples
 • A talking point at family dinners or parties
 • Viral content for your next TikTok
 
-────────────────
 ■ Plans
-────────────────
+
 Free: 2 generations per day (ages 5 and 10, standard quality)
 Weekly: $4.99 — unlimited Fast generation, all ages, 4K export, cloud history, no watermark
 Monthly: $14.99
 Yearly: $59.99 (about $5.00/month, save up to 25%)
 
-────────────────
 ■ Subscription details
-────────────────
+
 • Payment is charged to your Apple ID account at confirmation of purchase.
 • Subscription automatically renews unless auto-renew is turned off at least 24 hours before the end of the current period.
 • Your account is charged for renewal within 24 hours prior to the end of the current period.
-• Manage or cancel your subscription anytime in Settings ▸ Account ▸ Subscriptions after purchase.
+• Manage or cancel your subscription anytime in Settings > Account > Subscriptions after purchase.
 
-────────────────
 ■ Privacy
-────────────────
+
 • Photos you submit are used only for AI generation.
 • No third-party sharing. No advertising use.
 • See the Privacy Policy for full details.
 
-────────────────
 ■ Please note
-────────────────
+
 Every image is AI-generated and meant for entertainment. It does not predict or guarantee any real future child.
 
-────────────────
 ■ Support and legal
-────────────────
+
 Terms of Use: https://hiro0211.github.io/TwinMirror/terms.html
 Privacy Policy: https://hiro0211.github.io/TwinMirror/privacy.html
 Support: support@twinmirror.app
